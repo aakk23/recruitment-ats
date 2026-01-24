@@ -13,13 +13,27 @@ const STAGES = [
 ];
 
 function RoleDetailPage({ role, onBack }) {
+    const [apps, setApps] = useState(applications);
     const [selectedCandidate, setSelectedCandidate] = useState(null);
-  const groupedApplications = STAGES.reduce((acc, stage) => {
-    acc[stage] = applications.filter(
-      (app) => app.stage === stage
-    );
-    return acc;
-  }, {});
+    const groupedApplications = STAGES.reduce((acc, stage) => {
+        acc[stage] = apps.filter((app) => app.stage === stage);
+        return acc;
+    }, {});
+
+    const handleStageChange = (applicationId, newStage) => {
+      setApps((prevApps) =>
+        prevApps.map((app) =>
+          app.application_id === applicationId
+            ? { ...app, stage: newStage }
+            : app
+        )
+      );
+
+      setSelectedCandidate((prev) =>
+        prev ? { ...prev, stage: newStage } : prev
+      );
+    };
+
    
 
   return (
@@ -121,7 +135,8 @@ function RoleDetailPage({ role, onBack }) {
       <CandidatePanel
         application={selectedCandidate}
         onClose={() => setSelectedCandidate(null)} 
-        />
+        onStageChange={handleStageChange}
+      />
     </div>
   );
   

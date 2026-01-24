@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { commentsByApplication } from "../mock/comments";
 
-function CandidatePanel({ application, onClose }) {
+function CandidatePanel({ application, onClose, onStageChange }) {
   if (!application) return null;
 
   const comments =
     commentsByApplication[application.application_id] || [];
-  const [stage, setStage] = useState(application.stage);
+//   const [stage, setStage] = useState(application.stage);
 
   return (
     <div
@@ -80,9 +80,11 @@ function CandidatePanel({ application, onClose }) {
             Stage
           </div>
           <select
-            value={stage}
-            onChange={(e) => setStage(e.target.value)}
-            style={{ padding: "4px 8px" }}
+            value={application.stage}
+             onChange={(e) =>
+               onStageChange(application.application_id, e.target.value)
+             }
+             style={{ padding: "4px 8px" }}
           >
             <option value="new">new</option>
             <option value="screening">screening</option>
