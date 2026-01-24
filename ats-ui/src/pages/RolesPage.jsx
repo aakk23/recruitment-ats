@@ -14,11 +14,18 @@ function RolesPage({onRoleSelect}) {
   };
 
   return (
-    <div style={{ padding: "20px" }}>
-      <h2>Roles</h2>
+    <div style={{ 
+        padding: "20px" ,
+        height: "100vh",
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden"
+        }}>
+      {/* <h2>Roles</h2> */}
 
       {/* Filters */}
       <div style={{ marginBottom: "16px" }}>
+        <h2 style={{ marginBottom: "12px" }} >Roles</h2>
         <button
           onClick={() => setStatusFilter("open")}
           style={{
@@ -54,7 +61,12 @@ function RolesPage({onRoleSelect}) {
       </div>
 
       {/* Roles List */}
-      <div>
+      <div
+      style={{
+              flex: 1,
+              overflowY: "auto"
+            }}
+      >
         {filteredRoles.length === 0 && (
           <div style={{ color: "#777" }}>
             No roles found

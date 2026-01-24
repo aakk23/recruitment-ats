@@ -23,7 +23,13 @@ function RoleDetailPage({ role, onBack }) {
    
 
   return (
-    <div style={{ padding: "20px" }}>
+    <div style={{ 
+        padding: "20px",
+        height: "100vh",
+        display: "flex",
+        overflow: "hidden",
+        flexDirection: "column"
+     }}>
       {/* Header */}
       <div style={{ marginBottom: "16px" }}>
         <button onClick={onBack}>← Back</button>
@@ -37,29 +43,53 @@ function RoleDetailPage({ role, onBack }) {
       </div>
 
       {/* Applications */}
-      <div style={{ display: "flex", gap: "12px",alignItems:"flex-start" }}>
+      <div style={{ 
+        display: "flex", 
+        gap: "12px",
+        flex: 1,
+        overflowX: "auto",
+        overflowY: "hidden",
+        alignItems:"stretch" 
+        }}>
         {STAGES.map((stage) => (
           <div
             key={stage}
             style={{
-                flex: 1,
+                minWidth: "300px",
+                flexShrink: 0,
                 background: "#c7c3c3",
                 borderRadius: "8px",
                 padding: "10px",
-                minHeight: "300px"
+                display: "flex",
+                flexDirection: "column",
+                overflowY: "auto",
+                scrollbarWidth: "thin"
             }}
           >
             <div
               style={{
-                fontWeight: "600",
-                marginBottom: "10px",
-                textTransform: "capitalize",
-                fontSize: "14px",
-                color: "#333"
+                position: "sticky",
+                top: 0,
+                background: "#c7c3c3",
+                paddingBottom: "8px",
+                marginBottom: "8px",
+                // zIndex: 1,
+                borderBottom: "1px solid #aaa"
+
               }}
             >
-              {stage}
+              <div
+                style={{
+                  fontWeight: "600",
+                  textTransform: "capitalize",
+                  fontSize: "14px",
+                  color: "#333"
+                }}
+              >
+                {stage}
+              </div>
             </div>
+            
 
             {groupedApplications[stage].length === 0 && (
               <div style={{ fontSize: "12px", color: "#777" }}>

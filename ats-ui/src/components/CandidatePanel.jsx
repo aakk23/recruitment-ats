@@ -1,5 +1,12 @@
+import { useState } from "react";
+import { commentsByApplication } from "../mock/comments";
+
 function CandidatePanel({ application, onClose }) {
   if (!application) return null;
+
+  const comments =
+    commentsByApplication[application.application_id] || [];
+  const [stage, setStage] = useState(application.stage);
 
   return (
     <div
@@ -9,62 +16,161 @@ function CandidatePanel({ application, onClose }) {
         right: 0,
         width: "360px",
         height: "100vh",
-        background: "#fff",
-        borderLeft: "1px solid #ddd",
-        padding: "16px",
-        boxShadow: "-2px 0 8px rgba(0,0,0,0.1)"
+        background: "#ffffff",
+        borderLeft: "1px solid #e0e0e0",
+        // padding: "16px",
+        boxShadow: "-2px 0 8px rgba(0,0,0,0.08)"
       }}
     >
-      {/* Header */}
-      <div style={{ marginBottom: "16px" }}>
-        <button onClick={onClose}>✕</button>
-      </div>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          height: "100%",
+          overflow: "hidden",
+          padding: "16px"
 
-      {/* Candidate info */}
-      <div style={{ marginBottom: "16px" }}>
-        <h3 style={{ marginBottom: "4px" }}>
-          {application.candidate_name}
-        </h3>
-        <div style={{ fontSize: "14px", color: "#555" }}>
-          {application.email}
-        </div>
-        <div style={{ fontSize: "12px", color: "#777" }}>
-          Owner: {application.recruiter}
-        </div>
-      </div>
+        }}
+      >
+        {/* Header */}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-start",
+            marginBottom: "16px"
+          }}
+        >
+          <div>
+            <h3 style={{ margin: 0, color: "#222" }}>
+              {application.candidate_name}
+            </h3>
+            <div style={{ fontSize: "13px", color: "#666" }}>
+              {application.email}
+            </div>
+            <div style={{ fontSize: "12px", color: "#999" }}>
+              Owner: {application.recruiter}
+            </div>
+          </div>
 
-      {/* Stage */}
-      <div style={{ marginBottom: "16px" }}>
-        <div style={{ fontWeight: "600", marginBottom: "6px" }}>
-          Stage
-        </div>
-        <select defaultValue={application.stage}>
-          <option>new</option>
-          <option>screening</option>
-          <option>interview</option>
-          <option>offered</option>
-          <option>hired</option>
-          <option>rejected</option>
-        </select>
-      </div>
-
-      {/* Comments (mock) */}
-      <div>
-        <div style={{ fontWeight: "600", marginBottom: "8px" }}>
-          Comments
+          <button
+            onClick={onClose}
+            style={{
+              border: "none",
+              background: "transparent",
+              fontSize: "18px",
+              cursor: "pointer",
+              color: "#666"
+            }}
+          >
+            ×
+          </button>
         </div>
 
-        <div style={{ fontSize: "14px", marginBottom: "6px" }}>
-          Strong SQL skills
+        {/* Stage */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            marginBottom: "16px"
+          }}
+        >
+          <div style={{ fontSize: "13px", color: "#666" }}>
+            Stage
+          </div>
+          <select
+            value={stage}
+            onChange={(e) => setStage(e.target.value)}
+            style={{ padding: "4px 8px" }}
+          >
+            <option value="new">new</option>
+            <option value="screening">screening</option>
+            <option value="interview">interview</option>
+            <option value="offered">offered</option>
+            <option value="hired">hired</option>
+            <option value="rejected">rejected</option>
+          </select>
         </div>
 
-        <textarea
-          placeholder="Add a comment..."
-          style={{ width: "100%", minHeight: "80px" }}
-        />
-        <button style={{ marginTop: "8px" }}>
-          Save
-        </button>
+        {/* Comments */}
+        <div style={{ flex: 1, 
+                      overflowY: "auto",
+                      paddingRight: "4px",
+                      marginBottom: "12px" 
+                      
+                      }}>
+          <div
+            style={{
+              fontWeight: "600",
+              marginBottom: "8px",
+              color: "#222"
+            }}
+          >
+            Comments
+          </div>
+
+          {comments.length === 0 && (
+            <div style={{ fontSize: "12px", color: "#999" }}>
+              No comments yet
+            </div>
+          )}
+
+          {comments.map((c) => (
+            <div
+              key={c.id}
+              style={{
+                background: "#f7f7f7",
+                borderRadius: "6px",
+                padding: "8px",
+                marginBottom: "8px"
+              }}
+            >
+              <div style={{ fontSize: "13px", color: "#222" }}>
+                {c.comment}
+              </div>
+              <div style={{ fontSize: "11px", color: "#999" }}>
+                {c.recruiter} ·{" "}
+                {new Date(c.created_at).toLocaleDateString()}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Add comment */}
+        <div
+          style={{
+            marginTop: "auto",   // ← THIS IS THE KEY
+            background: "#ffffff",
+            borderTop: "1px solid #e0e0e0",
+            paddingTop: "8px",
+            paddingBottom: "20px"
+          }}
+        >
+          <textarea
+            placeholder="Add a comment…"
+            style={{
+              width: "100%",
+              minHeight: "60px",
+              padding: "8px",
+              resize: "none"
+            }}
+          />
+          <div style={{ textAlign: "right", marginTop: "6px" }}>
+            <button
+              style={{
+                padding: "6px 12px",
+                cursor: "pointer"
+              }}
+            >
+              Save
+            </button>
+          </div>
+        </div>
+
+
+
+
       </div>
     </div>
   );
