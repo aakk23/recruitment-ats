@@ -1,12 +1,32 @@
-import { useState } from "react";
-import { commentsByApplication } from "../mock/comments";
+import { useState, useEffect } from "react";
+import { fetchComments, addComment } from "../api";
+
+
+
 
 function CandidatePanel({ application, onClose, onStageChange }) {
-  if (!application) return null;
 
-  const comments =
-    commentsByApplication[application.application_id] || [];
-//   const [stage, setStage] = useState(application.stage);
+
+
+
+    const [comments, setComments] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
+    const [newComment, setNewComment] = useState("");
+    const [saving, setSaving] = useState(false);
+
+    useEffect(() => {
+      if (!application) return;
+
+      setLoading(true);
+      setError(null);
+
+      fetchComments(application.application_id)
+        .then(setComments)
+        .catch(() => setError("Could not load comments"))
+        .finally(() => setLoading(false));
+    }, [application]);
+    if(!application) return null;
 
   return (
     <div
@@ -111,12 +131,18 @@ function CandidatePanel({ application, onClose, onStageChange }) {
           >
             Comments
           </div>
-
-          {comments.length === 0 && (
+            {loading && <div>Loading comments...</div>}
+            {error && <div style={{ color: "red" }}>{error}</div>}
+          {/* {comments.length === 0 && (
             <div style={{ fontSize: "12px", color: "#999" }}>
               No comments yet
             </div>
-          )}
+          )} */}
+          {!loading && comments.length === 0 && (
+              <div style={{ fontSize: "12px", color: "#999" }}>
+                No comments yet
+              </div>
+            )}
 
           {comments.map((c) => (
             <div
@@ -151,6 +177,8 @@ function CandidatePanel({ application, onClose, onStageChange }) {
         >
           <textarea
             placeholder="Add a comment…"
+            value={newComment}
+            onChange={(e)=> setNewComment(e.target.value)}
             style={{
               width: "100%",
               minHeight: "60px",
@@ -160,12 +188,28 @@ function CandidatePanel({ application, onClose, onStageChange }) {
           />
           <div style={{ textAlign: "right", marginTop: "6px" }}>
             <button
+                // disabled={newComment.trim() === ""}
+                disabled={!newComment.trim() || loading}
+                onClick={() => {
+                    if (saving) return;
+                    setSaving(true);
+                  addComment(application.application_id, 1, newComment)
+                    .then(() => {
+                      setNewComment("");
+                      return fetchComments(application.application_id);
+                    })
+                    .then(setComments)
+                    .catch(() => {
+                      alert("Failed to add comment");
+                    }).finally(() => { setSaving(false)        
+                    });
+                }}
               style={{
                 padding: "6px 12px",
-                cursor: "pointer"
+                cursor: saving?"not-allowed": "pointer"
               }}
             >
-              Save
+              {saving ? "Saving..." : "Add Comment"}
             </button>
           </div>
         </div>

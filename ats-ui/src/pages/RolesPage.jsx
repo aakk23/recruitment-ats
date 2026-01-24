@@ -1,12 +1,23 @@
-import { useState } from "react";
-import { roles } from "../mock/roles";
+import { useState, useEffect } from "react";
+// import { roles } from "../mock/roles";
+import { fetchRoles } from "../api";
 
 function RolesPage({onRoleSelect}) {
-  const [statusFilter, setStatusFilter] = useState("open");
+    const [statusFilter, setStatusFilter] = useState("open");
+    const [roles, setRoles] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
 
-  const filteredRoles = roles.filter(
-    (role) => role.status === statusFilter
-  );
+    useEffect(() => {
+      setLoading(true);
+      setError(null);
+
+      fetchRoles(statusFilter)
+        .then(setRoles)
+        .catch(() => setError("Could not load roles"))
+        .finally(() => setLoading(false));
+    }, [statusFilter]);
+
 
   const handleRoleClick = (role) => {
     onRoleSelect(role);
@@ -61,22 +72,17 @@ function RolesPage({onRoleSelect}) {
       </div>
 
       {/* Roles List */}
-      <div
-      style={{
-              flex: 1,
-              overflowY: "auto"
-            }}
-      >
-        {filteredRoles.length === 0 && (
-          <div style={{ color: "#777" }}>
-            No roles found
-          </div>
+      {loading && <div>Loading roles...</div>}
+        {error && <div style={{ color: "red" }}>{error}</div>}
+          
+        {!loading && !error && roles.length === 0 && (
+          <div>No roles found</div>
         )}
 
-        {filteredRoles.map((role) => (
+        {roles.map((role) => (
           <div
             key={role.id}
-            onClick={() => handleRoleClick(role)}
+            onClick={() => onRoleSelect(role)}
             style={{
               border: "1px solid #ddd",
               borderRadius: "6px",
@@ -85,9 +91,7 @@ function RolesPage({onRoleSelect}) {
               cursor: "pointer"
             }}
           >
-            <div style={{ fontWeight: "600" }}>
-              {role.title}
-            </div>
+            <div style={{ fontWeight: "600" }}>{role.title}</div>
             <div style={{ fontSize: "14px", color: "#555" }}>
               Client: {role.client}
             </div>
@@ -96,7 +100,8 @@ function RolesPage({onRoleSelect}) {
             </div>
           </div>
         ))}
-      </div>
+
+      
     </div>
   );
 }

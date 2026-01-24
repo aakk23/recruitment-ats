@@ -1,5 +1,8 @@
-import { applications } from "../mock/applications";
-import { useState } from "react";
+// import { applications } from "../mock/applications";
+import { useState, useEffect } from "react";
+
+import { fetchApplications, updateApplicationStage } from "../api";
+
 import CandidatePanel from "../components/CandidatePanel";
 
 
@@ -13,14 +16,30 @@ const STAGES = [
 ];
 
 function RoleDetailPage({ role, onBack }) {
-    const [apps, setApps] = useState(applications);
+    const [apps, setApps] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
     const [selectedCandidate, setSelectedCandidate] = useState(null);
     const groupedApplications = STAGES.reduce((acc, stage) => {
         acc[stage] = apps.filter((app) => app.stage === stage);
         return acc;
     }, {});
+    useEffect(() => {
+          setLoading(true);
+          setError(null);
+
+          fetchApplications(role.id)
+            .then(setApps)
+            .catch(() => setError("Could not load applications"))
+            .finally(() => setLoading(false));
+        }, [role.id]);
+
 
     const handleStageChange = (applicationId, newStage) => {
+      // store previous state for rollback
+      const previousApps = apps;
+
+      // optimistic UI update
       setApps((prevApps) =>
         prevApps.map((app) =>
           app.application_id === applicationId
@@ -32,7 +51,15 @@ function RoleDetailPage({ role, onBack }) {
       setSelectedCandidate((prev) =>
         prev ? { ...prev, stage: newStage } : prev
       );
+
+      // backend update
+      updateApplicationStage(applicationId, newStage).catch(() => {
+        // rollback on failure
+        setApps(previousApps);
+        alert("Failed to update stage. Please try again.");
+      });
     };
+
 
    
 
@@ -57,6 +84,8 @@ function RoleDetailPage({ role, onBack }) {
       </div>
 
       {/* Applications */}
+      {loading && <div>Loading applications...</div>}
+      {error && <div style={{ color: "red" }}>{error}</div>}
       <div style={{ 
         display: "flex", 
         gap: "12px",
