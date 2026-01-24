@@ -72,11 +72,15 @@ function RolesPage({onRoleSelect}) {
       </div>
 
       {/* Roles List */}
-      {loading && <div>Loading roles...</div>}
+      {loading && (
+          <div style={{ color: "#777" }}>
+            Loading roles…
+          </div>
+        )}
         {error && <div style={{ color: "red" }}>{error}</div>}
           
         {!loading && !error && roles.length === 0 && (
-          <div>No roles found</div>
+          <div>No roles in this state yet</div>
         )}
 
         {roles.map((role) => (

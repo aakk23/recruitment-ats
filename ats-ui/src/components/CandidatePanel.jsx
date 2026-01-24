@@ -14,6 +14,8 @@ function CandidatePanel({ application, onClose, onStageChange }) {
     const [error, setError] = useState(null);
     const [newComment, setNewComment] = useState("");
     const [saving, setSaving] = useState(false);
+    const [saveError, setSaveError] = useState(null);
+
 
     useEffect(() => {
       if (!application) return;
@@ -74,7 +76,16 @@ function CandidatePanel({ application, onClose, onStageChange }) {
           </div>
 
           <button
-            onClick={onClose}
+            onClick={() => {
+                if (newComment.trim()) {
+                  const confirmClose = window.confirm(
+                    "You have an unsaved comment. Close anyway?"
+                  );
+                  if (!confirmClose) return;
+                }
+                onClose();
+            }}
+
             style={{
               border: "none",
               background: "transparent",
@@ -100,6 +111,7 @@ function CandidatePanel({ application, onClose, onStageChange }) {
             Stage
           </div>
           <select
+            disabled={saving}
             value={application.stage}
              onChange={(e) =>
                onStageChange(application.application_id, e.target.value)
@@ -133,14 +145,10 @@ function CandidatePanel({ application, onClose, onStageChange }) {
           </div>
             {loading && <div>Loading comments...</div>}
             {error && <div style={{ color: "red" }}>{error}</div>}
-          {/* {comments.length === 0 && (
-            <div style={{ fontSize: "12px", color: "#999" }}>
-              No comments yet
-            </div>
-          )} */}
+          
           {!loading && comments.length === 0 && (
               <div style={{ fontSize: "12px", color: "#999" }}>
-                No comments yet
+                Be the first to add comment!
               </div>
             )}
 
@@ -192,6 +200,7 @@ function CandidatePanel({ application, onClose, onStageChange }) {
                 disabled={!newComment.trim() || loading}
                 onClick={() => {
                     if (saving) return;
+                    setSaveError(null);
                     setSaving(true);
                   addComment(application.application_id, 1, newComment)
                     .then(() => {
@@ -200,7 +209,7 @@ function CandidatePanel({ application, onClose, onStageChange }) {
                     })
                     .then(setComments)
                     .catch(() => {
-                      alert("Failed to add comment");
+                      setSaveError("Could not add comment. Try again.");
                     }).finally(() => { setSaving(false)        
                     });
                 }}
@@ -211,6 +220,11 @@ function CandidatePanel({ application, onClose, onStageChange }) {
             >
               {saving ? "Saving..." : "Add Comment"}
             </button>
+            {saveError && (
+                  <div style={{ color: "red", fontSize: "12px", marginTop: "6px" }}>
+                    {saveError}
+                  </div>
+                )}
           </div>
         </div>
 
