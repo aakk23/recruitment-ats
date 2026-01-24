@@ -379,3 +379,30 @@ def list_comments(application_id: int):
     finally:
         cur.close()
         conn.close()
+
+
+@app.delete("/applications/{application_id}", status_code=204)
+def delete_application(application_id: int):
+    conn = get_connection()
+    cur = conn.cursor()
+
+    try:
+        cur.execute(
+            "DELETE FROM applications WHERE id = %s RETURNING id",
+            (application_id,)
+        )
+
+        deleted = cur.fetchone()
+        if not deleted:
+            raise HTTPException(status_code=404, detail="Application not found")
+
+        conn.commit()
+        return
+
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+    finally:
+        cur.close()
+        conn.close()

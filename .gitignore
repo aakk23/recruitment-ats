@@ -1,0 +1,26 @@
+# --------------------
+# Python virtual env
+# --------------------
+myenv/
+venv/
+.env/
+
+# --------------------
+# Uploaded files
+# --------------------
+uploads/*.pdf
+
+# (optional) ignore all files inside uploads
+# uploads/*
+
+# --------------------
+# Python cache
+# --------------------
+__pycache__/
+*.pyc
+
+# --------------------
+# OS / editor noise
+# --------------------
+.DS_Store
+.vscode/
