@@ -8,7 +8,17 @@ function LoginPage({ onLogin }) {
   const [loading, setLoading] = useState(false);
 
   return (
-    <div style={{ padding: "40px", maxWidth: "360px", margin: "0 auto" }}>
+    <div style={{ 
+      padding: "40px", 
+      maxWidth: "360px", 
+      margin: "0 auto",
+      minHeight: "100vh",
+      background: "#1e1e1e",
+      color: "#fff",
+      display: "flex",
+      flexDirection: "column",
+      justifyContent: "center"
+    }}>
       <h2>Login</h2>
 
       <input

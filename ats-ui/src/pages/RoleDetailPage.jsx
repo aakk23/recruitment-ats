@@ -66,58 +66,75 @@ function RoleDetailPage({ role, onBack }) {
   return (
     <div style={{ 
         padding: "20px",
-        height: "100vh",
+        minHeight: "100vh",
+        background: "#1e1e1e",
+        color: "#fff",
         display: "flex",
-        overflow: "hidden",
         flexDirection: "column"
      }}>
       {/* Header */}
-      <div style={{ marginBottom: "16px" }}>
-        <button onClick={onBack}>← Back</button>
-        <h2 style={{ marginTop: "8px" }}>{role.title}</h2>
-        <div style={{ color: "#555" }}>
+      <div style={{ marginBottom: "24px", padding: "20px", background: "#2a2a2a", borderRadius: "8px" }}>
+        <button 
+          onClick={onBack}
+          style={{
+            padding: "8px 16px",
+            background: "#444",
+            color: "#fff",
+            border: "1px solid #555",
+            borderRadius: "6px",
+            cursor: "pointer",
+            marginBottom: "12px"
+          }}
+        >← Back</button>
+        <h2 style={{ margin: "0 0 8px 0", color: "#fff" }}>{role.title}</h2>
+        <div style={{ color: "#ccc", fontSize: "14px" }}>
           Client: {role.client}
         </div>
-        <div style={{ fontSize: "12px", color: "#777" }}>
-          Status: {role.status}
+        <div style={{ fontSize: "12px", color: "#999" }}>
+          Status: <span style={{ 
+            color: role.status === 'open' ? '#4CAF50' : '#f44336',
+            fontWeight: '500'
+          }}>{role.status}</span>
         </div>
       </div>
 
       {/* Applications */}
-      {loading && <div>Loading applications...</div>}
-      {error && <div style={{ color: "red" }}>{error}</div>}
+      {loading && <div style={{ color: "#ccc", textAlign: "center", padding: "40px" }}>Loading applications...</div>}
+      {error && <div style={{ color: "#f44336", textAlign: "center", padding: "40px", background: "#2a2a2a", borderRadius: "8px", margin: "20px 0" }}>{error}</div>}
       <div style={{ 
         display: "flex", 
-        gap: "12px",
+        gap: "16px",
         flex: 1,
         overflowX: "auto",
         overflowY: "hidden",
-        alignItems:"stretch" 
+        paddingBottom: "20px"
         }}>
         {STAGES.map((stage) => (
           <div
             key={stage}
             style={{
-                minWidth: "300px",
+                minWidth: "320px",
                 flexShrink: 0,
-                background: "#c7c3c3",
-                borderRadius: "8px",
-                padding: "10px",
+                background: "#2a2a2a",
+                borderRadius: "12px",
+                padding: "16px",
                 display: "flex",
                 flexDirection: "column",
                 overflowY: "auto",
-                scrollbarWidth: "thin"
+                scrollbarWidth: "thin",
+                border: "1px solid #444",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.3)"
             }}
           >
             <div
               style={{
                 position: "sticky",
                 top: 0,
-                background: "#c7c3c3",
-                paddingBottom: "8px",
-                marginBottom: "8px",
-                // zIndex: 1,
-                borderBottom: "1px solid #aaa"
+                background: "#2a2a2a",
+                paddingBottom: "12px",
+                marginBottom: "16px",
+                borderBottom: "2px solid #444",
+                borderRadius: "8px 8px 0 0"
 
               }}
             >
@@ -125,17 +142,38 @@ function RoleDetailPage({ role, onBack }) {
                 style={{
                   fontWeight: "600",
                   textTransform: "capitalize",
-                  fontSize: "14px",
-                  color: "#333"
+                  fontSize: "16px",
+                  color: "#fff",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px"
                 }}
               >
                 {stage}
+                <span style={{
+                  fontSize: "12px",
+                  color: "#999",
+                  background: "#1e1e1e",
+                  padding: "2px 8px",
+                  borderRadius: "12px",
+                  fontWeight: "400"
+                }}>
+                  {groupedApplications[stage].length}
+                </span>
               </div>
             </div>
             
 
             {groupedApplications[stage].length === 0 && (
-              <div style={{ fontSize: "12px", color: "#777" }}>
+              <div style={{ 
+                fontSize: "14px", 
+                color: "#777", 
+                textAlign: "center",
+                padding: "40px 20px",
+                background: "#1e1e1e",
+                borderRadius: "8px",
+                border: "2px dashed #444"
+              }}>
                 No candidates
               </div>
             )}
@@ -144,16 +182,30 @@ function RoleDetailPage({ role, onBack }) {
               <div
                 key={app.application_id}
                 style={{
-                    background: "#3e3d3d",
-                    borderRadius: "6px",
-                    padding: "8px",
-                    marginBottom: "8px",
-                    cursor: "pointer"
+                    background: "#333",
+                    borderRadius: "8px",
+                    padding: "12px",
+                    marginBottom: "12px",
+                    cursor: "pointer",
+                    border: "1px solid #444",
+                    transition: "all 0.2s ease",
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.2)"
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = "translateY(-2px)";
+                  e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.4)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = "translateY(0)";
+                  e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.2)";
                 }}
                 onClick={() => setSelectedCandidate(app)}
               >
-                <div style={{ fontWeight: "500" }}>{app.candidate_name}</div>
-                <div style={{ fontSize: "12px", color: "#c2bfbf" }}>
+                <div style={{ fontWeight: "600", marginBottom: "4px", color: "#fff" }}>{app.candidate_name}</div>
+                <div style={{ fontSize: "12px", color: "#ccc", marginBottom: "8px" }}>
+                  {app.email}
+                </div>
+                <div style={{ fontSize: "11px", color: "#999" }}>
                   Owner: {app.recruiter}
                 </div>
               </div>

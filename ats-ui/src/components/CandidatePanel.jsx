@@ -36,12 +36,12 @@ function CandidatePanel({ application, onClose, onStageChange }) {
         position: "fixed",
         top: 0,
         right: 0,
-        width: "360px",
+        width: "380px",
         height: "100vh",
-        background: "#ffffff",
-        borderLeft: "1px solid #e0e0e0",
-        // padding: "16px",
-        boxShadow: "-2px 0 8px rgba(0,0,0,0.08)"
+        background: "#1e1e1e",
+        borderLeft: "1px solid #333",
+        boxShadow: "-4px 0 16px rgba(0,0,0,0.5)",
+        zIndex: 1000
       }}
     >
       <div
@@ -60,14 +60,16 @@ function CandidatePanel({ application, onClose, onStageChange }) {
             display: "flex",
             justifyContent: "space-between",
             alignItems: "flex-start",
-            marginBottom: "16px"
+            marginBottom: "20px",
+            paddingBottom: "16px",
+            borderBottom: "1px solid #333"
           }}
         >
           <div>
-            <h3 style={{ margin: 0, color: "#222" }}>
+            <h3 style={{ margin: "0 0 4px 0", color: "#fff" }}>
               {application.candidate_name}
             </h3>
-            <div style={{ fontSize: "13px", color: "#666" }}>
+            <div style={{ fontSize: "13px", color: "#ccc" }}>
               {application.email}
             </div>
             <div style={{ fontSize: "12px", color: "#999" }}>
@@ -89,9 +91,11 @@ function CandidatePanel({ application, onClose, onStageChange }) {
             style={{
               border: "none",
               background: "transparent",
-              fontSize: "18px",
+              fontSize: "20px",
               cursor: "pointer",
-              color: "#666"
+              color: "#999",
+              padding: "4px",
+              borderRadius: "4px"
             }}
           >
             ×
@@ -103,11 +107,14 @@ function CandidatePanel({ application, onClose, onStageChange }) {
           style={{
             display: "flex",
             alignItems: "center",
-            gap: "8px",
-            marginBottom: "16px"
+            gap: "12px",
+            marginBottom: "20px",
+            padding: "12px",
+            background: "#2a2a2a",
+            borderRadius: "8px"
           }}
         >
-          <div style={{ fontSize: "13px", color: "#666" }}>
+          <div style={{ fontSize: "14px", color: "#fff", fontWeight: "500" }}>
             Stage
           </div>
           <select
@@ -116,7 +123,14 @@ function CandidatePanel({ application, onClose, onStageChange }) {
              onChange={(e) =>
                onStageChange(application.application_id, e.target.value)
              }
-             style={{ padding: "4px 8px" }}
+             style={{ 
+               padding: "6px 12px",
+               background: "#333",
+               color: "#fff",
+               border: "1px solid #555",
+               borderRadius: "6px",
+               fontSize: "14px"
+             }}
           >
             <option value="new">new</option>
             <option value="screening">screening</option>
@@ -137,17 +151,18 @@ function CandidatePanel({ application, onClose, onStageChange }) {
           <div
             style={{
               fontWeight: "600",
-              marginBottom: "8px",
-              color: "#222"
+              marginBottom: "12px",
+              color: "#fff",
+              fontSize: "16px"
             }}
           >
             Comments
           </div>
-            {loading && <div>Loading comments...</div>}
-            {error && <div style={{ color: "red" }}>{error}</div>}
+            {loading && <div style={{ color: "#ccc" }}>Loading comments...</div>}
+            {error && <div style={{ color: "#f44336" }}>{error}</div>}
           
           {!loading && comments.length === 0 && (
-              <div style={{ fontSize: "12px", color: "#999" }}>
+              <div style={{ fontSize: "14px", color: "#777", textAlign: "center", padding: "20px" }}>
                 Be the first to add comment!
               </div>
             )}
@@ -156,13 +171,14 @@ function CandidatePanel({ application, onClose, onStageChange }) {
             <div
               key={c.id}
               style={{
-                background: "#f7f7f7",
-                borderRadius: "6px",
-                padding: "8px",
-                marginBottom: "8px"
+                background: "#2a2a2a",
+                borderRadius: "8px",
+                padding: "12px",
+                marginBottom: "12px",
+                border: "1px solid #333"
               }}
             >
-              <div style={{ fontSize: "13px", color: "#222" }}>
+              <div style={{ fontSize: "14px", color: "#fff", marginBottom: "6px" }}>
                 {c.comment}
               </div>
               <div style={{ fontSize: "11px", color: "#999" }}>
@@ -176,10 +192,10 @@ function CandidatePanel({ application, onClose, onStageChange }) {
         {/* Add comment */}
         <div
           style={{
-            marginTop: "auto",   // ← THIS IS THE KEY
-            background: "#ffffff",
-            borderTop: "1px solid #e0e0e0",
-            paddingTop: "8px",
+            marginTop: "auto",
+            background: "#1e1e1e",
+            borderTop: "1px solid #333",
+            paddingTop: "16px",
             paddingBottom: "20px"
           }}
         >
@@ -189,14 +205,19 @@ function CandidatePanel({ application, onClose, onStageChange }) {
             onChange={(e)=> setNewComment(e.target.value)}
             style={{
               width: "100%",
-              minHeight: "60px",
-              padding: "8px",
-              resize: "none"
+              minHeight: "80px",
+              padding: "12px",
+              resize: "none",
+              background: "#2a2a2a",
+              color: "#fff",
+              border: "1px solid #555",
+              borderRadius: "8px",
+              fontSize: "14px",
+              fontFamily: "inherit"
             }}
           />
-          <div style={{ textAlign: "right", marginTop: "6px" }}>
+          <div style={{ textAlign: "right", marginTop: "12px" }}>
             <button
-                // disabled={newComment.trim() === ""}
                 disabled={!newComment.trim() || loading}
                 onClick={() => {
                     if (saving) return;
@@ -214,14 +235,20 @@ function CandidatePanel({ application, onClose, onStageChange }) {
                     });
                 }}
               style={{
-                padding: "6px 12px",
-                cursor: saving?"not-allowed": "pointer"
+                padding: "8px 16px",
+                background: newComment.trim() ? "#4CAF50" : "#333",
+                color: "#fff",
+                border: "none",
+                borderRadius: "6px",
+                cursor: newComment.trim() && !saving ? "pointer" : "not-allowed",
+                fontSize: "14px",
+                fontWeight: "500"
               }}
             >
               {saving ? "Saving..." : "Add Comment"}
             </button>
             {saveError && (
-                  <div style={{ color: "red", fontSize: "12px", marginTop: "6px" }}>
+                  <div style={{ color: "#f44336", fontSize: "12px", marginTop: "8px" }}>
                     {saveError}
                   </div>
                 )}

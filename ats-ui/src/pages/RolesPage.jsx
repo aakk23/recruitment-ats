@@ -27,11 +27,13 @@ function RolesPage({onRoleSelect}) {
   return (
 
     <div style={{
-              height: "100vh",
+              minHeight: "100vh",
               background: "#1e1e1e",
               padding: "24px",
               boxSizing: "border-box",
-              overflowY: "auto"
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "flex-start"
             }}
     >
         <div style={{
