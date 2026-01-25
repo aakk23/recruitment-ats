@@ -1,9 +1,17 @@
 # main.py
 import os
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Depends
+from fastapi.security import OAuth2PasswordRequestForm
 from db import get_connection
 from typing import Optional
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from datetime import timedelta
+from auth import verify_password, create_access_token, get_current_user
+
+
+
+
 
 
 app = FastAPI()
@@ -27,7 +35,8 @@ def create_candidate(
     full_name: str = Form(...),
     email: Optional[str] = Form(None),
     phone: Optional[str] = Form(None),
-    resume: UploadFile = File(...)
+    resume: UploadFile = File(...),
+    user_id: int = Depends(get_current_user)
 ):
     conn = get_connection()
     cur = conn.cursor()
@@ -89,10 +98,15 @@ from fastapi import Body
 import psycopg2
 
 @app.post("/applications")
-def create_application(payload: dict = Body(...)):
+def create_application(
+        payload: dict = Body(...),
+        user_id: int = Depends(get_current_user)
+    ):
+
+
+
     candidate_id = payload.get("candidate_id")
     role_id = payload.get("role_id")
-    recruiter_id = payload.get("recruiter_id")
 
     if not candidate_id or not role_id or not recruiter_id:
         raise HTTPException(status_code=400, detail="candidate_id, role_id, recruiter_id are required")
@@ -111,10 +125,6 @@ def create_application(payload: dict = Body(...)):
         if not cur.fetchone():
             raise HTTPException(status_code=404, detail="Role not found")
 
-        # 3. Check recruiter exists
-        cur.execute("SELECT id FROM recruiters WHERE id = %s", (recruiter_id,))
-        if not cur.fetchone():
-            raise HTTPException(status_code=404, detail="Recruiter not found")
 
         # 4. Create application
         cur.execute(
@@ -123,7 +133,7 @@ def create_application(payload: dict = Body(...)):
             VALUES (%s, %s, %s, 'new')
             RETURNING id, stage
             """,
-            (candidate_id, role_id, recruiter_id)
+            (candidate_id, role_id, user_id)
         )
 
         app_id, stage = cur.fetchone()
@@ -160,7 +170,14 @@ ALLOWED_STAGES = {
 }
 
 @app.patch("/applications/{application_id}/stage")
-def update_application_stage(application_id: int, payload: dict = Body(...)):
+def update_application_stage(
+            application_id: int,
+            payload: dict = Body(...),
+            user_id: int = Depends(get_current_user)
+        ):
+
+
+
     new_stage = payload.get("stage")
 
     if not new_stage:
@@ -302,8 +319,15 @@ def list_applications_for_role(role_id: int, stage: Optional[str] = None):
         conn.close()
 
 @app.post("/applications/{application_id}/comments")
-def add_comment(application_id: int, payload: dict = Body(...)):
-    recruiter_id = payload.get("recruiter_id")
+def add_comment(
+            application_id: int,
+            payload: dict = Body(...),
+            user_id: int = Depends(get_current_user)
+        ):
+
+
+
+    
     comment = payload.get("comment")
 
     if not recruiter_id or not comment:
@@ -324,13 +348,6 @@ def add_comment(application_id: int, payload: dict = Body(...)):
         if not cur.fetchone():
             raise HTTPException(status_code=404, detail="Application not found")
 
-        # check recruiter exists
-        cur.execute(
-            "SELECT id FROM recruiters WHERE id = %s",
-            (recruiter_id,)
-        )
-        if not cur.fetchone():
-            raise HTTPException(status_code=404, detail="Recruiter not found")
 
         cur.execute(
             """
@@ -338,7 +355,7 @@ def add_comment(application_id: int, payload: dict = Body(...)):
             VALUES (%s, %s, %s)
             RETURNING id, comment
             """,
-            (application_id, recruiter_id, comment)
+            (application_id, user_id, comment)
         )
 
         comment_id, text = cur.fetchone()
@@ -420,3 +437,60 @@ def delete_application(application_id: int):
     finally:
         cur.close()
         conn.close()
+
+
+@app.post("/auth/login")
+def login(form_data: OAuth2PasswordRequestForm = Depends()):
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute(
+        "SELECT id, email, password_hash FROM recruiters WHERE email = %s",
+        (form_data.username,)
+    )
+    user = cur.fetchone()
+
+    cur.close()
+    conn.close()
+
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    user_id, email, password_hash = user
+
+    if not verify_password(form_data.password, password_hash):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    access_token = create_access_token(
+        data={"sub": str(user_id)}
+    )
+
+    return {
+        "access_token": access_token,
+        "token_type": "bearer"
+    }
+
+
+
+@app.get("/auth/me")
+def get_me(user_id: int = Depends(get_current_user)):
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute(
+        "SELECT id, name, email FROM recruiters WHERE id = %s",
+        (user_id,)
+    )
+    user = cur.fetchone()
+
+    cur.close()
+    conn.close()
+
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+
+    return {
+        "id": user[0],
+        "name": user[1],
+        "email": user[2]
+    }

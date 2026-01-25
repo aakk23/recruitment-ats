@@ -1,5 +1,21 @@
 const BASE_URL = "http://127.0.0.1:8000";
 
+
+function getAuthHeaders() {
+  const token = localStorage.getItem("token");
+  return token
+    ? { Authorization: `Bearer ${token}` }
+    : {};
+}
+
+function handleAuthError(res) {
+  if (res.status === 401) {
+    localStorage.removeItem("token");
+    window.location.reload();
+  }
+}
+
+
 export async function fetchRoles(status) {
   const url = status
     ? `${BASE_URL}/roles?status=${status}`
@@ -32,11 +48,16 @@ export async function updateApplicationStage(applicationId, stage) {
     {
       method: "PATCH",
       headers: {
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        ...getAuthHeaders()
       },
-      body: JSON.stringify({ stage })
+      body: JSON.stringify({ stage })   
     }
   );
+  if (res.status === 401) {
+      handleAuthError(res);
+      return;
+    }
 
   if (!res.ok) {
     throw new Error("Failed to update stage");
@@ -63,7 +84,8 @@ export async function addComment(applicationId, recruiterId, comment) {
     {
       method: "POST",
       headers: {
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        ...getAuthHeaders()
       },
       body: JSON.stringify({
         recruiter_id: recruiterId,
@@ -71,6 +93,11 @@ export async function addComment(applicationId, recruiterId, comment) {
       })
     }
   );
+  
+  if (res.status === 401) {
+      handleAuthError(res);
+      return;
+    }
 
   if (!res.ok) {
     throw new Error("Failed to add comment");
@@ -78,3 +105,27 @@ export async function addComment(applicationId, recruiterId, comment) {
 
   return res.json();
 }
+
+
+
+export async function login(email, password) {
+  const form = new URLSearchParams();
+  form.append("username", email);
+  form.append("password", password);
+
+  const res = await fetch("http://127.0.0.1:8000/auth/login", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded"
+    },
+    body: form
+  });
+
+  if (!res.ok) {
+    throw new Error("Invalid credentials");
+  }
+
+  return res.json();
+}
+
+
