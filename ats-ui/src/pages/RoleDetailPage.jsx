@@ -317,6 +317,13 @@ function RoleDetailPage({ role, onBack }) {
           onCandidateAdded={(applicationId) => {
             loadApplications(applicationId); 
           }}
+          onViewApplication={(applicationId) => {
+            const app = apps.find((a) => a.application_id === applicationId);
+            if (app) {
+              setSelectedCandidate(app);
+              setShowAddCandidate(false);
+            }
+          }}
         />
       )}
     </div>

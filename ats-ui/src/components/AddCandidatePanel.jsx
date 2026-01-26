@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { createCandidate, createApplication } from "../api";
 
-function AddCandidatePanel({ role, onClose, onCandidateAdded }) {
+function AddCandidatePanel({ role, onClose, onCandidateAdded, onViewApplication }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -14,6 +14,12 @@ function AddCandidatePanel({ role, onClose, onCandidateAdded }) {
   const closeAfterOpen = (applicationId) => {
       onCandidateAdded(applicationId);
       onClose();
+    };
+  
+  const viewProfile = (applicationId) => {
+      if (onViewApplication) {
+        onViewApplication(applicationId);
+      }
     };
 
   return (
@@ -214,7 +220,7 @@ function AddCandidatePanel({ role, onClose, onCandidateAdded }) {
                       marginBottom: "8px"
                     }}
                     onClick={() => {
-                      closeAfterOpen(duplicateInfo.application_id);
+                      viewProfile(duplicateInfo.application_id);
                     }}
                   >
                     View profile
