@@ -223,7 +223,7 @@ function CandidatePanel({ application, onClose, onStageChange }) {
                     if (saving) return;
                     setSaveError(null);
                     setSaving(true);
-                  addComment(application.application_id, 1, newComment)
+                  addComment(application.application_id, newComment)
                     .then(() => {
                       setNewComment("");
                       return fetchComments(application.application_id);

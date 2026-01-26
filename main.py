@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from datetime import timedelta
 from auth import verify_password, create_access_token, get_current_user
-
+from psycopg2.errors import UniqueViolation
 
 
 
@@ -35,6 +35,7 @@ def create_candidate(
     full_name: str = Form(...),
     email: Optional[str] = Form(None),
     phone: Optional[str] = Form(None),
+    role_id: int = Form(...),
     resume: UploadFile = File(...),
     user_id: int = Depends(get_current_user)
 ):
@@ -48,8 +49,24 @@ def create_candidate(
                 "SELECT id FROM candidates WHERE email = %s",
                 (email,)
             )
-            if cur.fetchone():
-                raise HTTPException(status_code=400, detail="Email already exists")
+            existing = cur.fetchone()
+            if existing:
+                candidate_id = existing[0]
+                cur.execute(
+                    """SELECT id FROM applications
+                       WHERE candidate_id = %s AND role_id = %s""",
+                    (candidate_id, role_id)
+                )
+                app = cur.fetchone()
+
+                raise HTTPException(
+                    status_code=409,
+                    detail={
+                        "status": "email_exists",
+                        "candidate_id": candidate_id,
+                        "application_id": app[0] if app else None
+                    }
+                )
 
         # 2. Insert candidate (temporary resume path)
         cur.execute(
@@ -80,6 +97,7 @@ def create_candidate(
         conn.commit()
 
         return {
+            "status": "created",
             "id": candidate_id,
             "full_name": full_name,
             "email": email
@@ -108,8 +126,8 @@ def create_application(
     candidate_id = payload.get("candidate_id")
     role_id = payload.get("role_id")
 
-    if not candidate_id or not role_id or not recruiter_id:
-        raise HTTPException(status_code=400, detail="candidate_id, role_id, recruiter_id are required")
+    if not candidate_id or not role_id:
+        raise HTTPException(status_code=400, detail="candidate_id, role_id are required")
 
     conn = get_connection()
     cur = conn.cursor()
@@ -164,7 +182,7 @@ ALLOWED_STAGES = {
     "new",
     "screening",
     "interview",
-    "offer",
+    "offered",
     "hired",
     "rejected"
 }
@@ -330,10 +348,10 @@ def add_comment(
     
     comment = payload.get("comment")
 
-    if not recruiter_id or not comment:
+    if not comment:
         raise HTTPException(
             status_code=400,
-            detail="recruiter_id and comment are required"
+            detail="comment is required"
         )
 
     conn = get_connection()

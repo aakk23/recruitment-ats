@@ -78,7 +78,7 @@ export async function fetchComments(applicationId) {
   return res.json();
 }
 
-export async function addComment(applicationId, recruiterId, comment) {
+export async function addComment(applicationId, comment) {
   const res = await fetch(
     `http://127.0.0.1:8000/applications/${applicationId}/comments`,
     {
@@ -88,7 +88,6 @@ export async function addComment(applicationId, recruiterId, comment) {
         ...getAuthHeaders()
       },
       body: JSON.stringify({
-        recruiter_id: recruiterId,
         comment
       })
     }
@@ -129,3 +128,49 @@ export async function login(email, password) {
 }
 
 
+export async function createCandidate(formData) {
+  const res = await fetch("http://127.0.0.1:8000/candidates", {
+    method: "POST",
+    headers: {
+      ...getAuthHeaders()
+    },
+    body: formData
+  });
+
+  if (res.status === 409) {
+    return res.json();
+  }
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to create candidate");
+  }
+
+  return res.json();
+}
+
+export async function createApplication(candidateId, roleId) {
+  const res = await fetch("http://127.0.0.1:8000/applications", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeaders()
+    },
+    body: JSON.stringify({
+      candidate_id: candidateId,
+      role_id: roleId,
+      recruiter_id: 5 // TEMP — logged-in user later
+    })
+  });
+
+  if (res.status === 401) {
+    handleAuthError(res);
+    return;
+  }
+
+  if (!res.ok) {
+    throw new Error("Failed to create application");
+  }
+
+  return res.json();
+}

@@ -1,9 +1,13 @@
-// import { applications } from "../mock/applications";
+
 import { useState, useEffect } from "react";
 
 import { fetchApplications, updateApplicationStage } from "../api";
 
 import CandidatePanel from "../components/CandidatePanel";
+import { useToast } from "../toast/ToastContext";
+import AddCandidatePanel from "../components/AddCandidatePanel";
+
+
 
 
 const STAGES = [
@@ -20,19 +24,56 @@ function RoleDetailPage({ role, onBack }) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [selectedCandidate, setSelectedCandidate] = useState(null);
+    const [showAddCandidate, setShowAddCandidate] = useState(false);
+    const { showToast } = useToast();
     const groupedApplications = STAGES.reduce((acc, stage) => {
         acc[stage] = apps.filter((app) => app.stage === stage);
         return acc;
     }, {});
     useEffect(() => {
-          setLoading(true);
-          setError(null);
-
-          fetchApplications(role.id)
-            .then(setApps)
-            .catch(() => setError("Could not load applications"))
-            .finally(() => setLoading(false));
+        loadApplications();
         }, [role.id]);
+
+    const loadApplications = (openAfterId=null) => {
+        
+      setLoading(true);
+      setError(null);
+
+      fetchApplications(role.id)
+        .then((data) => {
+          setApps(data);
+
+          // if we’re waiting to open a candidate
+          if (openAfterId) {
+            const app = data.find(
+              (a) => a.application_id === openAfterId
+            );
+
+            if (app) {
+              showToast({
+                type: "success",
+                message: "Candidate added successfully",
+                action: {
+                  label: "View profile",
+                  onClick: () => setSelectedCandidate(app)
+                }
+              });
+            }
+          }
+        })
+        .catch(() => setError("Could not load applications"))
+        .finally(() => setLoading(false));
+    };
+
+
+
+
+
+
+
+
+
+
 
 
     const handleStageChange = (applicationId, newStage) => {
@@ -56,12 +97,13 @@ function RoleDetailPage({ role, onBack }) {
       updateApplicationStage(applicationId, newStage).catch(() => {
         // rollback on failure
         setApps(previousApps);
-        alert("Failed to update stage. Please try again.");
+        showToast({
+              type: "error",
+              message: "Failed to update stage. Please try again."
+            });
       });
     };
-
-
-   
+    
 
   return (
     <div style={{ 
@@ -73,30 +115,80 @@ function RoleDetailPage({ role, onBack }) {
         flexDirection: "column"
      }}>
       {/* Header */}
-      <div style={{ marginBottom: "24px", padding: "20px", background: "#2a2a2a", borderRadius: "8px" }}>
-        <button 
-          onClick={onBack}
-          style={{
-            padding: "8px 16px",
-            background: "#444",
-            color: "#fff",
-            border: "1px solid #555",
-            borderRadius: "6px",
-            cursor: "pointer",
-            marginBottom: "12px"
-          }}
-        >← Back</button>
-        <h2 style={{ margin: "0 0 8px 0", color: "#fff" }}>{role.title}</h2>
-        <div style={{ color: "#ccc", fontSize: "14px" }}>
-          Client: {role.client}
+      <div style={{ 
+          marginBottom: "24px", 
+          padding: "24px", 
+          background: "#2a2a2a", 
+          borderRadius: "12px",
+          border: "1px solid #3d3d3d" 
+        }}>
+          {/* Top Row: Navigation */}
+          <button 
+            onClick={onBack}
+            style={{
+              padding: "6px 12px",
+              background: "transparent",
+              color: "#aaa",
+              border: "1px solid #444",
+              borderRadius: "6px",
+              cursor: "pointer",
+              marginBottom: "20px",
+              fontSize: "13px",
+              transition: "all 0.2s"
+            }}
+            onMouseOver={(e) => e.currentTarget.style.color = "#fff"}
+            onMouseOut={(e) => e.currentTarget.style.color = "#aaa"}
+          >
+            ← Back to List
+          </button>
+        
+          {/* Main Row: Title Info + Action Button */}
+          <div style={{ 
+            display: "flex", 
+            justifyContent: "space-between", 
+            alignItems: "flex-end" // Aligns button to the bottom of the text block
+          }}>
+            <div>
+              <h2 style={{ margin: "0 0 6px 0", color: "#fff", fontSize: "24px" }}>
+                {role.title}
+              </h2>
+              <div style={{ display: "flex", gap: "16px", alignItems: "center" }}>
+                <span style={{ color: "#ccc", fontSize: "14px" }}>
+                  <strong>Client:</strong> {role.client}
+                </span>
+                <span style={{ fontSize: "12px", color: "#999", display: "flex", alignItems: "center", gap: "6px" }}>
+                  <span style={{ 
+                    width: "8px", 
+                    height: "8px", 
+                    borderRadius: "50%", 
+                    background: role.status === 'open' ? '#4CAF50' : '#f44336' 
+                  }} />
+                  Status: <span style={{ 
+                    color: role.status === 'open' ? '#4CAF50' : '#f44336',
+                    fontWeight: '600',
+                    textTransform: 'capitalize'
+                  }}>{role.status}</span>
+                </span>
+              </div>
+            </div>
+              
+            <button
+              onClick={() => setShowAddCandidate(true)}
+              style={{
+                padding: "10px 20px",
+                background: "#4CAF50",
+                color: "#fff",
+                border: "none",
+                borderRadius: "8px",
+                cursor: "pointer",
+                fontWeight: "600",
+                boxShadow: "0 2px 8px rgba(76, 175, 80, 0.3)"
+              }}
+            >
+              + Add Candidate
+            </button>
+          </div>
         </div>
-        <div style={{ fontSize: "12px", color: "#999" }}>
-          Status: <span style={{ 
-            color: role.status === 'open' ? '#4CAF50' : '#f44336',
-            fontWeight: '500'
-          }}>{role.status}</span>
-        </div>
-      </div>
 
       {/* Applications */}
       {loading && <div style={{ color: "#ccc", textAlign: "center", padding: "40px" }}>Loading applications...</div>}
@@ -218,6 +310,15 @@ function RoleDetailPage({ role, onBack }) {
         onClose={() => setSelectedCandidate(null)} 
         onStageChange={handleStageChange}
       />
+      {showAddCandidate && (
+        <AddCandidatePanel
+          role={role}
+          onClose={() => setShowAddCandidate(false)}
+          onCandidateAdded={(applicationId) => {
+            loadApplications(applicationId); 
+          }}
+        />
+      )}
     </div>
   );
   

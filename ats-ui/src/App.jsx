@@ -2,6 +2,8 @@ import { useState } from "react";
 import RolesPage from "./pages/RolesPage";
 import RoleDetailPage from "./pages/RoleDetailPage";
 import LoginPage from "./pages/LoginPage";
+import { ToastProvider } from "./toast/ToastContext";
+import ToastContainer from "./toast/ToastContainer";
 
 function App() {
   const [authenticated, setAuthenticated] = useState(
@@ -10,22 +12,28 @@ function App() {
 
   const [selectedRole, setSelectedRole] = useState(null);
 
-  // 1️⃣ Auth gate
-  if (!authenticated) {
-    return <LoginPage onLogin={() => setAuthenticated(true)} />;
-  }
+  return (
+    <ToastProvider>
+      <ToastContainer />
 
-  // 2️⃣ ATS navigation
-  if (selectedRole) {
-    return (
-      <RoleDetailPage
-        role={selectedRole}
-        onBack={() => setSelectedRole(null)}
-      />
-    );
-  }
+      {/* 1️⃣ Auth gate */}
+      {!authenticated && (
+        <LoginPage onLogin={() => setAuthenticated(true)} />
+      )}
 
-  return <RolesPage onRoleSelect={setSelectedRole} />;
+      {/* 2️⃣ ATS navigation */}
+      {authenticated && selectedRole && (
+        <RoleDetailPage
+          role={selectedRole}
+          onBack={() => setSelectedRole(null)}
+        />
+      )}
+
+      {authenticated && !selectedRole && (
+        <RolesPage onRoleSelect={setSelectedRole} />
+      )}
+    </ToastProvider>
+  );
 }
 
 export default App;
