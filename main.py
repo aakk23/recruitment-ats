@@ -59,14 +59,16 @@ def create_candidate(
                 )
                 app = cur.fetchone()
 
-                raise HTTPException(
-                    status_code=409,
-                    detail={
-                        "status": "email_exists",
-                        "candidate_id": candidate_id,
-                        "application_id": app[0] if app else None
-                    }
-                )
+                # Return 200 with email_exists status (not 409 error)
+                # Close resources before returning
+                cur.close()
+                conn.close()
+                
+                return {
+                    "status": "email_exists",
+                    "candidate_id": candidate_id,
+                    "application_id": app[0] if app else None
+                }
 
         # 2. Insert candidate (temporary resume path)
         cur.execute(

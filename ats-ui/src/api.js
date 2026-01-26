@@ -137,10 +137,6 @@ export async function createCandidate(formData) {
     body: formData
   });
 
-  if (res.status === 409) {
-    return res.json();
-  }
-
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.detail || "Failed to create candidate");
