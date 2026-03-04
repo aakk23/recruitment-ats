@@ -32,6 +32,7 @@ from repositories.role_repository import (
     list_roles,
     get_role_by_id,
     create_role,
+    update_role,
     update_role_visibility,
     role_exists,
     list_clients,
@@ -130,6 +131,36 @@ class UpdateVisibilityRequest(BaseModel):
     def check_visibility(cls, v):
         if v not in ALLOWED_VISIBILITY:
             raise ValueError(f"visibility must be one of {sorted(ALLOWED_VISIBILITY)}")
+        return v
+
+
+class UpdateRoleRequest(BaseModel):
+    title:         Optional[str]       = Field(default=None, min_length=1, max_length=300)
+    description:   Optional[str]       = Field(default=None, max_length=10000)
+    department:    Optional[str]       = Field(default=None, max_length=100)
+    min_exp:       Optional[float]     = Field(default=None, ge=0, le=50)
+    max_exp:       Optional[float]     = Field(default=None, ge=0, le=50)
+    min_salary:    Optional[int]       = Field(default=None, ge=0)
+    max_salary:    Optional[int]       = Field(default=None, ge=0)
+    job_type:      Optional[str]       = Field(default=None)
+    company_name:  Optional[str]       = Field(default=None, max_length=200)
+    about_company: Optional[str]       = Field(default=None, max_length=5000)
+    skills:        Optional[List[str]] = Field(default=None)
+    visibility:    Optional[str]       = Field(default=None)
+    team_id:       Optional[int]       = Field(default=None, gt=0)
+
+    @field_validator("visibility")
+    @classmethod
+    def check_vis(cls, v):
+        if v and v not in {"published", "internal", "closed"}:
+            raise ValueError("Invalid visibility")
+        return v
+
+    @field_validator("job_type")
+    @classmethod
+    def check_jt(cls, v):
+        if v and v not in {"full-time", "part-time", "contract", "freelance", "internship"}:
+            raise ValueError("Invalid job_type")
         return v
 
 
@@ -253,6 +284,21 @@ def get_role(role_id: int, user_id: int = Depends(get_current_user)):
     if not role:
         raise HTTPException(status_code=404, detail="Role not found")
     return role
+
+
+@app.patch("/roles/{role_id}")
+def patch_role(
+    role_id: int,
+    body:    UpdateRoleRequest,
+    user_id: int = Depends(get_current_user),
+):
+    if not role_exists(role_id):
+        raise HTTPException(status_code=404, detail="Role not found")
+    fields = {k: v for k, v in body.model_dump().items() if v is not None}
+    result = update_role(role_id, fields)
+    if not result:
+        raise HTTPException(status_code=404, detail="Role not found")
+    return result
 
 
 @app.patch("/roles/{role_id}/visibility")

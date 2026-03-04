@@ -211,3 +211,39 @@ def _row_to_list_item(r) -> dict:
         "skills":     r[11] or [],
         "team_name":  r[12],
     }
+
+
+# def update_role(role_id: int, fields: dict) -> dict | None:
+def update_role(role_id: int, fields: dict) -> Optional[dict]:
+    """
+    Partial update — only keys present in `fields` are written.
+    Allowed keys mirror the create_role signature.
+    """
+    ALLOWED = {
+        "title", "description", "department",
+        "min_exp", "max_exp", "min_salary", "max_salary",
+        "job_type", "company_name", "about_company",
+        "skills", "visibility", "team_id",
+    }
+    updates = {k: v for k, v in fields.items() if k in ALLOWED}
+    if not updates:
+        return get_role_by_id(role_id)
+
+    set_clause = ", ".join(f"{col} = %s" for col in updates)
+    values     = list(updates.values()) + [role_id]
+
+    with get_db_conn() as conn:
+        cur = conn.cursor()
+        try:
+            cur.execute(
+                f"UPDATE roles SET {set_clause}, updated_at = NOW() WHERE id = %s RETURNING id",
+                tuple(values),
+            )
+            result = cur.fetchone()
+            conn.commit()
+            return get_role_by_id(role_id) if result else None
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            cur.close()

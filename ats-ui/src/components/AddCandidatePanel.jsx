@@ -7,10 +7,11 @@ function AddCandidatePanel({ role, onClose, onCandidateAdded, onViewApplication 
   const [email,         setEmail]         = useState("");
   const [phone,         setPhone]         = useState("");
   const [resume,        setResume]        = useState(null);
+  const [linkedinUrl,   setLinkedinUrl]   = useState("");
   const [saving,        setSaving]        = useState(false);
   const [duplicateInfo, setDuplicateInfo] = useState(null);
 
-  const hasChanges = name || email || phone || resume;
+  const hasChanges = name || email || phone || resume || linkedinUrl;
 
   const closeAfterOpen = (applicationId) => {
     onCandidateAdded(applicationId);
@@ -24,6 +25,7 @@ function AddCandidatePanel({ role, onClose, onCandidateAdded, onViewApplication 
       formData.append("full_name", name);
       formData.append("email", email);
       if (phone) formData.append("phone", phone);
+      if (linkedinUrl) formData.append("linkedin_url", linkedinUrl);
       formData.append("role_id", role.id);
       formData.append("resume", resume);
 
@@ -104,6 +106,11 @@ function AddCandidatePanel({ role, onClose, onCandidateAdded, onViewApplication 
         <Field label="Phone">
           <input value={phone} onChange={(e) => setPhone(e.target.value)}
             placeholder="+91 98765 43210" style={inputStyle} />
+        </Field>
+
+        <Field label="LinkedIn">
+          <input value={linkedinUrl} onChange={(e) => setLinkedinUrl(e.target.value)}
+            placeholder="https://linkedin.com/in/username" style={inputStyle} />
         </Field>
 
         <Field label="Resume *">

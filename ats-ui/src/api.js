@@ -66,6 +66,13 @@ export const createRole     = (body)   => apiFetch("/roles", {
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify(body),
 });
+export const updateRole = (roleId, body) =>
+  apiFetch(`/roles/${roleId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
 export const updateVisibility = (roleId, visibility) =>
   apiFetch(`/roles/${roleId}/visibility`, {
     method: "PATCH",

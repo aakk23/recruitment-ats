@@ -137,7 +137,10 @@ export default function CreateJobPanel({ onClose, onCreated }) {
     }
   };
 
+  // Step 0→1: need title. Step 1→2: need client. Step 2→submit: always.
   const canAdvance = step === 0 ? title.trim().length > 0 : step === 1 ? !!clientId : true;
+  const expValid = (!minExp || !maxExp) || parseFloat(minExp) <= parseFloat(maxExp);
+  const salaryValid = (!minSalary || !maxSalary) || parseInt(minSalary) <= parseInt(maxSalary);
 
   return (
     <div style={{
@@ -221,6 +224,7 @@ export default function CreateJobPanel({ onClose, onCreated }) {
             companyName={companyName} setCompanyName={setCompanyName}
             aboutCompany={aboutCompany} setAboutCompany={setAboutCompany}
             visibility={visibility} setVisibility={setVisibility}
+            expValid={expValid} salaryValid={salaryValid}
           />}
           {step === 2 && <StepStages
             stages={stages}
@@ -303,6 +307,7 @@ function StepPostingInfo({
   companyName, setCompanyName,
   aboutCompany, setAboutCompany,
   visibility, setVisibility,
+  expValid, salaryValid,
 }) {
   return (
     <>
@@ -324,6 +329,7 @@ function StepPostingInfo({
         <Field label="Max Exp (yrs)">
           <input type="number" value={maxExp} onChange={(e) => setMaxExp(e.target.value)}
             placeholder="10" min="0" max="50" style={inputStyle} />
+          {!expValid && <div style={{fontSize:"11px",color:"var(--danger)",marginTop:"4px"}}>Max must be ≥ Min</div>}
         </Field>
         <Field label="Min Salary">
           <input type="number" value={minSalary} onChange={(e) => setMinSalary(e.target.value)}
@@ -332,6 +338,7 @@ function StepPostingInfo({
         <Field label="Max Salary">
           <input type="number" value={maxSalary} onChange={(e) => setMaxSalary(e.target.value)}
             placeholder="1200000" min="0" style={inputStyle} />
+          {!salaryValid && <div style={{fontSize:"11px",color:"var(--danger)",marginTop:"4px"}}>Max must be ≥ Min</div>}
         </Field>
         <Field label="Job Type">
           <select value={jobType} onChange={(e) => setJobType(e.target.value)} style={selectStyle}>
