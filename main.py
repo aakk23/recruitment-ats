@@ -293,21 +293,23 @@ def list_applications_for_role(role_id: int, stage: Optional[str] = None):
     conn = get_connection()
     cur = conn.cursor()
 
-
     try:
         query = """
             SELECT 
                 a.id,
                 cand.full_name,
                 cand.email,
+                cand.phone,
                 a.stage,
                 rec.name
             FROM applications a
             JOIN candidates cand ON a.candidate_id = cand.id
             JOIN recruiters rec ON a.recruiter_id = rec.id
             WHERE a.role_id = %s
-            """
+        """
+
         params = [role_id]
+
         if stage:
             if stage not in ALLOWED_STAGES:
                 raise HTTPException(
@@ -316,9 +318,8 @@ def list_applications_for_role(role_id: int, stage: Optional[str] = None):
                 )
             query += " AND a.stage = %s"
             params.append(stage)
+
         query += " ORDER BY a.created_at DESC"
-            
-        
 
         cur.execute(query, tuple(params))
         rows = cur.fetchall()
@@ -328,8 +329,9 @@ def list_applications_for_role(role_id: int, stage: Optional[str] = None):
                 "application_id": row[0],
                 "candidate_name": row[1],
                 "email": row[2],
-                "stage": row[3],
-                "recruiter": row[4]
+                "phone": row[3],
+                "stage": row[4],
+                "recruiter": row[5]
             }
             for row in rows
         ]
@@ -337,6 +339,65 @@ def list_applications_for_role(role_id: int, stage: Optional[str] = None):
     finally:
         cur.close()
         conn.close()
+
+
+
+
+
+
+
+
+
+# @app.get("/roles/{role_id}/applications")
+# def list_applications_for_role(role_id: int, stage: Optional[str] = None):
+#     conn = get_connection()
+#     cur = conn.cursor()
+
+
+#     try:
+#         query = """
+#             SELECT 
+#                 a.id,
+#                 cand.full_name,
+#                 cand.email,
+#                 cand.phone,
+#                 a.stage,
+#                 rec.name
+#             FROM applications a
+#             JOIN candidates cand ON a.candidate_id = cand.id
+#             JOIN recruiters rec ON a.recruiter_id = rec.id
+#             WHERE a.role_id = %s 
+#             """
+#         params = [role_id]
+#         if stage:
+#             if stage not in ALLOWED_STAGES:
+#                 raise HTTPException(
+#                     status_code=400,
+#                     detail=f"Invalid stage. Allowed stages: {sorted(ALLOWED_STAGES)}"
+#                 )
+#             query += " AND a.stage = %s"
+#             params.append(stage)
+#         query += " ORDER BY a.created_at DESC"
+            
+        
+
+#         cur.execute(query, tuple(params))
+#         rows = cur.fetchall()
+
+#         return [
+#             {
+#                 "application_id": row[0],
+#                 "candidate_name": row[1],
+#                 "email": row[2],
+#                 "stage": row[3],
+#                 "recruiter": row[4]
+#             }
+#             for row in rows
+#         ]
+
+#     finally:
+#         cur.close()
+#         conn.close()
 
 @app.post("/applications/{application_id}/comments")
 def add_comment(

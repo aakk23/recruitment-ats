@@ -72,6 +72,12 @@ function CandidatePanel({ application, onClose, onStageChange }) {
             <div style={{ fontSize: "13px", color: "#ccc" }}>
               {application.email}
             </div>
+            {application.phone && (
+              <div style={{ fontSize: "12px", color: "#ccc" }}>
+                📞 {application.phone}
+              </div>
+            )}
+            
             <div style={{ fontSize: "12px", color: "#999" }}>
               Owner: {application.recruiter}
             </div>
