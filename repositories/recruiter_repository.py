@@ -33,3 +33,14 @@ def find_recruiter_by_id(recruiter_id: int) -> Optional[dict]:
             return {"id": row[0], "name": row[1], "email": row[2]}
         finally:
             cur.close()
+
+
+def list_recruiters() -> list:
+    """Returns all recruiters for dropdowns (ownership, tagging, team assignment)."""
+    with get_db_conn() as conn:
+        cur = conn.cursor()
+        try:
+            cur.execute("SELECT id, name, email FROM recruiters ORDER BY name ASC")
+            return [{"id": r[0], "name": r[1], "email": r[2]} for r in cur.fetchall()]
+        finally:
+            cur.close()

@@ -1,20 +1,33 @@
 // src/App.jsx
 import { useState } from "react";
-import RolesPage from "./pages/RolesPage";
+import RolesPage     from "./pages/RolesPage";
 import RoleDetailPage from "./pages/RoleDetailPage";
-import LoginPage from "./pages/LoginPage";
-import Navbar from "./components/Navbar";
+import LoginPage     from "./pages/LoginPage";
+import Navbar        from "./components/Navbar";
 import { ToastProvider } from "./toast/ToastContext";
-import ToastContainer from "./toast/ToastContainer";
+import ToastContainer    from "./toast/ToastContainer";
+import { fetchRole }     from "./api";
 
-function App() {
+export default function App() {
   const [authenticated, setAuthenticated] = useState(!!localStorage.getItem("token"));
   const [selectedRole,  setSelectedRole]  = useState(null);
+  const [roleLoading,   setRoleLoading]   = useState(false);
 
   const handleLogout = () => {
     localStorage.removeItem("token");
     setSelectedRole(null);
     setAuthenticated(false);
+  };
+
+  // Fetch full role detail on click — list response is a slim projection,
+  // detail has description, skills, visibility, about_company, etc.
+  const handleRoleSelect = (role) => {
+    setSelectedRole(role);       // show board immediately with what we have
+    setRoleLoading(true);
+    fetchRole(role.id)
+      .then((full) => { if (full) setSelectedRole(full); })
+      .catch(() => { /* board still works with list projection */ })
+      .finally(() => setRoleLoading(false));
   };
 
   if (!authenticated) {
@@ -33,11 +46,9 @@ function App() {
         <Navbar onLogout={handleLogout} />
         {selectedRole
           ? <RoleDetailPage role={selectedRole} onBack={() => setSelectedRole(null)} />
-          : <RolesPage onRoleSelect={setSelectedRole} />
+          : <RolesPage onRoleSelect={handleRoleSelect} />
         }
       </div>
     </ToastProvider>
   );
 }
-
-export default App;

@@ -13,86 +13,17 @@ function handleAuthError(res) {
   }
 }
 
-// ── Roles ─────────────────────────────────────────────────────────────────────
-
-/**
- * Fetches a page of roles.
- * @param {string|null} status  - "open" | "closed" | null
- * @param {number}      limit   - page size (default 50)
- * @param {number|null} cursor  - role_id to paginate from (from previous next_cursor)
- * @returns {{ items: Role[], next_cursor: number|null }}
- */
-export async function fetchRoles(status, limit = 50, cursor = null) {
-  const params = new URLSearchParams();
-  if (status) params.set("status", status);
-  params.set("limit", limit);
-  if (cursor) params.set("cursor", cursor);
-
-  const res = await fetch(`${BASE_URL}/roles?${params}`);
-  if (!res.ok) throw new Error("Failed to fetch roles");
-  return res.json(); // { items, next_cursor }
-}
-
-// ── Stages ────────────────────────────────────────────────────────────────────
-
-export async function fetchStages(roleId) {
-  const res = await fetch(`${BASE_URL}/roles/${roleId}/stages`);
-  if (!res.ok) throw new Error("Failed to fetch stages");
-  return res.json(); // [{ name, position }, ...]
-}
-
-// ── Applications ──────────────────────────────────────────────────────────────
-
-/**
- * Fetches a page of applications for a role.
- * @param {number}      roleId
- * @param {number}      limit   - page size (default 200 — fits entire Kanban board)
- * @param {number|null} cursor  - application_id to paginate from
- * @returns {{ items: Application[], next_cursor: number|null }}
- */
-export async function fetchApplications(roleId, limit = 200, cursor = null) {
-  const params = new URLSearchParams();
-  params.set("limit", limit);
-  if (cursor) params.set("cursor", cursor);
-
-  const res = await fetch(`${BASE_URL}/roles/${roleId}/applications?${params}`);
-  if (!res.ok) throw new Error("Failed to fetch applications");
-  return res.json(); // { items, next_cursor }
-}
-
-export async function updateApplicationStage(applicationId, stage) {
-  const res = await fetch(
-    `${BASE_URL}/applications/${applicationId}/stage`,
-    {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-      body: JSON.stringify({ stage }),
-    }
-  );
-  if (res.status === 401) { handleAuthError(res); return; }
-  if (!res.ok) throw new Error("Failed to update stage");
-  return res.json();
-}
-
-// ── Comments ──────────────────────────────────────────────────────────────────
-
-export async function fetchComments(applicationId) {
-  const res = await fetch(`${BASE_URL}/applications/${applicationId}/comments`);
-  if (!res.ok) throw new Error("Failed to fetch comments");
-  return res.json();
-}
-
-export async function addComment(applicationId, comment) {
-  const res = await fetch(
-    `${BASE_URL}/applications/${applicationId}/comments`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-      body: JSON.stringify({ comment }),
-    }
-  );
-  if (res.status === 401) { handleAuthError(res); return; }
-  if (!res.ok) throw new Error("Failed to add comment");
+async function apiFetch(path, options = {}) {
+  const res = await fetch(`${BASE_URL}${path}`, {
+    ...options,
+    headers: { ...getAuthHeaders(), ...(options.headers || {}) },
+  });
+  if (res.status === 401) { handleAuthError(res); return null; }
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || `Request failed: ${path}`);
+  }
+  if (res.status === 204) return null;
   return res.json();
 }
 
@@ -111,31 +42,59 @@ export async function login(email, password) {
   return res.json();
 }
 
-// ── Candidates ────────────────────────────────────────────────────────────────
+export const fetchMe = () => apiFetch("/auth/me");
 
-/**
- * Fetches the full candidate profile for a given application.
- * Uses GET /candidates/{candidate_id} which returns phone + resume_url.
- * Note: the panel receives an application object which contains application_id,
- * so we resolve the candidate_id from the application via a dedicated endpoint.
- * Since the backend GET /candidates/{id} expects a candidate_id, we pass it
- * through the application object's candidate_id field (added to list response).
- */
-/**
- * Fetches the full candidate profile by candidate_id.
- * Returns { id, full_name, email, phone, resume_path, resume_url, created_at }
- * Returns null gracefully if the fetch fails — panel still renders without it.
- */
-export async function fetchCandidate(candidateId) {
-  if (!candidateId) return null;
-  const res = await fetch(
-    `${BASE_URL}/candidates/${candidateId}`,
-    { headers: { ...getAuthHeaders() } }
-  );
-  if (res.status === 401) { handleAuthError(res); return null; }
-  if (!res.ok) return null;
-  return res.json();
+// ── Lookup data ───────────────────────────────────────────────────────────────
+
+export const fetchRecruiters = () => apiFetch("/recruiters");
+export const fetchClients    = () => apiFetch("/clients");
+
+// ── Roles ─────────────────────────────────────────────────────────────────────
+
+export function fetchRoles(status, limit = 50, cursor = null, visibility = null) {
+  const params = new URLSearchParams();
+  if (status)     params.set("status", status);
+  if (visibility) params.set("visibility", visibility);
+  if (cursor)     params.set("cursor", cursor);
+  params.set("limit", limit);
+  return apiFetch(`/roles?${params}`);
 }
+
+export const fetchRole      = (roleId) => apiFetch(`/roles/${roleId}`);
+export const createRole     = (body)   => apiFetch("/roles", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify(body),
+});
+export const updateVisibility = (roleId, visibility) =>
+  apiFetch(`/roles/${roleId}/visibility`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ visibility }),
+  });
+
+// ── Stages & substages ────────────────────────────────────────────────────────
+
+export const fetchStages = (roleId) => apiFetch(`/roles/${roleId}/stages`);
+
+export const createStage = (roleId, name, position) =>
+  apiFetch(`/roles/${roleId}/stages`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, position }),
+  });
+
+export const createSubstage = (stageId, name, position = 0) =>
+  apiFetch(`/stages/${stageId}/substages`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, position }),
+  });
+
+export const deleteSubstage = (substageId) =>
+  apiFetch(`/substages/${substageId}`, { method: "DELETE" });
+
+// ── Candidates ────────────────────────────────────────────────────────────────
 
 export async function createCandidate(formData) {
   const res = await fetch(`${BASE_URL}/candidates`, {
@@ -143,6 +102,7 @@ export async function createCandidate(formData) {
     headers: { ...getAuthHeaders() },
     body: formData,
   });
+  if (res.status === 401) { handleAuthError(res); return null; }
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.detail || "Failed to create candidate");
@@ -150,13 +110,66 @@ export async function createCandidate(formData) {
   return res.json();
 }
 
-export async function createApplication(candidateId, roleId) {
-  const res = await fetch(`${BASE_URL}/applications`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-    body: JSON.stringify({ candidate_id: candidateId, role_id: roleId }),
-  });
-  if (res.status === 401) { handleAuthError(res); return; }
-  if (!res.ok) throw new Error("Failed to create application");
-  return res.json();
+export async function fetchCandidate(candidateId) {
+  if (!candidateId) return null;
+  try {
+    return await apiFetch(`/candidates/${candidateId}`);
+  } catch { return null; }
 }
+
+// ── Applications ──────────────────────────────────────────────────────────────
+
+export function fetchApplications(roleId, { stage, search, limit = 50, cursor } = {}) {
+  const params = new URLSearchParams();
+  if (stage)  params.set("stage", stage);
+  if (search) params.set("search", search);
+  if (cursor) params.set("cursor", cursor);
+  params.set("limit", limit);
+  return apiFetch(`/roles/${roleId}/applications?${params}`);
+}
+
+export const createApplication = (candidateId, roleId, resumeFilename = null) =>
+  apiFetch("/applications", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      candidate_id: candidateId,
+      role_id: roleId,
+      ...(resumeFilename ? { resume_filename: resumeFilename } : {}),
+    }),
+  });
+
+export const updateApplicationStage = (applicationId, stage, substageId = null) =>
+  apiFetch(`/applications/${applicationId}/stage`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ stage, ...(substageId ? { substage_id: substageId } : {}) }),
+  });
+
+export const updateOwnership = (applicationId, body) =>
+  apiFetch(`/applications/${applicationId}/ownership`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+// ── Comments ──────────────────────────────────────────────────────────────────
+
+export const fetchComments = (applicationId) =>
+  apiFetch(`/applications/${applicationId}/comments`);
+
+export const addComment = (applicationId, comment, isPrivate = false, taggedIds = []) =>
+  apiFetch(`/applications/${applicationId}/comments`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      comment,
+      is_private: isPrivate,
+      tagged_recruiter_ids: taggedIds,
+    }),
+  });
+
+// ── Events ────────────────────────────────────────────────────────────────────
+
+export const fetchEvents = (applicationId) =>
+  apiFetch(`/applications/${applicationId}/events`);
