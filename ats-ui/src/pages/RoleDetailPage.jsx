@@ -233,7 +233,8 @@ function RoleDetailPage({ role, onBack }) {
                       fontSize: "11px",
                       color: "#777",
                     }}>
-                      {columnApps.length}
+                      {/* Show count+  when a next page exists — loaded count may undercount */}
+                      {columnApps.length}{nextCursor ? "+" : ""}
                     </span>
                   </div>
 
@@ -303,6 +304,7 @@ function RoleDetailPage({ role, onBack }) {
 
       <CandidatePanel
         application={selectedCandidate}
+        roleId={role.id}
         onClose={() => setSelectedCandidate(null)}
         onStageChange={handleStageChange}
       />

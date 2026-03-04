@@ -103,7 +103,7 @@ def list_applications_for_role(
 
             cur.execute(
                 f"""
-                SELECT a.id, cand.full_name, cand.email, a.stage, rec.name, a.created_at
+                SELECT a.id, cand.full_name, cand.email, a.stage, rec.name, a.created_at, cand.id
                 FROM applications a
                 JOIN candidates cand ON a.candidate_id = cand.id
                 JOIN recruiters rec  ON a.recruiter_id = rec.id
@@ -126,6 +126,7 @@ def list_applications_for_role(
                         "email": r[2],
                         "stage": r[3],
                         "recruiter": r[4],
+                        "candidate_id": r[6],   # needed by frontend to call GET /candidates/{id}
                     }
                     for r in page
                 ],

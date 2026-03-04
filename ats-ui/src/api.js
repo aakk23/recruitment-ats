@@ -113,6 +113,30 @@ export async function login(email, password) {
 
 // ── Candidates ────────────────────────────────────────────────────────────────
 
+/**
+ * Fetches the full candidate profile for a given application.
+ * Uses GET /candidates/{candidate_id} which returns phone + resume_url.
+ * Note: the panel receives an application object which contains application_id,
+ * so we resolve the candidate_id from the application via a dedicated endpoint.
+ * Since the backend GET /candidates/{id} expects a candidate_id, we pass it
+ * through the application object's candidate_id field (added to list response).
+ */
+/**
+ * Fetches the full candidate profile by candidate_id.
+ * Returns { id, full_name, email, phone, resume_path, resume_url, created_at }
+ * Returns null gracefully if the fetch fails — panel still renders without it.
+ */
+export async function fetchCandidate(candidateId) {
+  if (!candidateId) return null;
+  const res = await fetch(
+    `${BASE_URL}/candidates/${candidateId}`,
+    { headers: { ...getAuthHeaders() } }
+  );
+  if (res.status === 401) { handleAuthError(res); return null; }
+  if (!res.ok) return null;
+  return res.json();
+}
+
 export async function createCandidate(formData) {
   const res = await fetch(`${BASE_URL}/candidates`, {
     method: "POST",
