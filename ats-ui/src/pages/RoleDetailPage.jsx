@@ -94,91 +94,108 @@ function RoleDetailPage({ role, onBack }) {
 
   return (
     <div style={{
-      padding: "20px",
-      minHeight: "100vh",
-      background: "#1e1e1e",
-      color: "#fff",
+      padding: "24px",
+      minHeight: "calc(100vh - 52px)",
+      background: "var(--bg-base)",
+      color: "var(--text-primary)",
       display: "flex",
       flexDirection: "column",
     }}>
 
       {/* ── Header ── */}
       <div style={{
-        marginBottom: "24px",
-        padding: "24px",
-        background: "#2a2a2a",
-        borderRadius: "12px",
-        border: "1px solid #3d3d3d",
+        marginBottom: "20px",
+        padding: "20px 24px",
+        background: "var(--bg-surface)",
+        borderRadius: "var(--radius-lg)",
+        border: "1px solid var(--border-subtle)",
+        display: "flex",
+        alignItems: "center",
+        gap: "16px",
+        flexWrap: "wrap",
       }}>
+        {/* Back */}
         <button
           onClick={onBack}
           style={{
             padding: "6px 12px",
             background: "transparent",
-            color: "#aaa",
-            border: "1px solid #444",
-            borderRadius: "6px",
-            cursor: "pointer",
-            marginBottom: "20px",
+            color: "var(--text-muted)",
+            border: "1px solid var(--border-default)",
+            borderRadius: "var(--radius-md)",
             fontSize: "13px",
-            transition: "all 0.2s",
+            fontWeight: 500,
+            transition: "all 0.15s",
+            flexShrink: 0,
           }}
-          onMouseOver={(e) => (e.currentTarget.style.color = "#fff")}
-          onMouseOut={(e) => (e.currentTarget.style.color = "#aaa")}
+          onMouseOver={(e) => {
+            e.currentTarget.style.color = "var(--text-primary)";
+            e.currentTarget.style.borderColor = "var(--border-strong)";
+          }}
+          onMouseOut={(e) => {
+            e.currentTarget.style.color = "var(--text-muted)";
+            e.currentTarget.style.borderColor = "var(--border-default)";
+          }}
         >
-          ← Back to List
+          ← Roles
         </button>
 
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
-          <div>
-            <h2 style={{ margin: "0 0 6px 0", color: "#fff", fontSize: "24px" }}>{role.title}</h2>
-            <div style={{ display: "flex", gap: "16px", alignItems: "center" }}>
-              <span style={{ color: "#ccc", fontSize: "14px" }}>
-                <strong>Client:</strong> {role.client}
-              </span>
-              <span style={{ fontSize: "12px", color: "#999", display: "flex", alignItems: "center", gap: "6px" }}>
-                <span style={{
-                  width: "8px", height: "8px", borderRadius: "50%",
-                  background: role.status === "open" ? "#4CAF50" : "#f44336",
-                }} />
-                Status:{" "}
-                <span style={{
-                  color: role.status === "open" ? "#4CAF50" : "#f44336",
-                  fontWeight: "600",
-                  textTransform: "capitalize",
-                }}>
-                  {role.status}
-                </span>
-              </span>
-            </div>
-          </div>
+        {/* Divider */}
+        <span style={{ color: "var(--border-strong)", flexShrink: 0 }}>›</span>
 
-          <button
-            onClick={() => setShowAddCandidate(true)}
-            style={{
-              padding: "10px 20px",
-              background: "#4CAF50",
-              color: "#fff",
-              border: "none",
-              borderRadius: "8px",
-              cursor: "pointer",
-              fontWeight: "600",
-              boxShadow: "0 2px 8px rgba(76, 175, 80, 0.3)",
-            }}
-          >
-            + Add Candidate
-          </button>
+        {/* Title + meta */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <h2 style={{ margin: "0 0 4px 0", fontSize: "18px", fontWeight: 700, letterSpacing: "-0.02em" }}>
+            {role.title}
+          </h2>
+          <div style={{ display: "flex", gap: "14px", alignItems: "center", flexWrap: "wrap" }}>
+            <span style={{ fontSize: "13px", color: "var(--text-muted)" }}>
+              {role.client}
+            </span>
+            <span className={`badge ${role.status === "open" ? "badge-open" : "badge-closed"}`}>
+              <span className="dot" style={{
+                background: role.status === "open" ? "var(--success)" : "var(--danger)",
+              }} />
+              {role.status}
+            </span>
+          </div>
         </div>
+
+        {/* Add candidate */}
+        <button
+          onClick={() => setShowAddCandidate(true)}
+          style={{
+            padding: "9px 18px",
+            background: "var(--accent)",
+            color: "#fff",
+            border: "none",
+            borderRadius: "var(--radius-md)",
+            fontSize: "13px",
+            fontWeight: 600,
+            boxShadow: "0 0 20px rgba(37,99,235,0.25)",
+            transition: "background 0.15s",
+            flexShrink: 0,
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.background = "var(--accent-hover)"}
+          onMouseLeave={(e) => e.currentTarget.style.background = "var(--accent)"}
+        >
+          + Add Candidate
+        </button>
       </div>
 
       {/* ── States ── */}
       {loading && (
-        <div style={{ color: "#ccc", textAlign: "center", padding: "40px" }}>
-          Loading board...
+        <div style={{ color: "var(--text-muted)", textAlign: "center", padding: "60px", fontSize: "13px" }}>
+          Loading board…
         </div>
       )}
       {error && (
-        <div style={{ color: "#f44336", textAlign: "center", padding: "40px", background: "#2a2a2a", borderRadius: "8px", margin: "20px 0" }}>
+        <div style={{
+          color: "var(--danger)", textAlign: "center", padding: "16px",
+          background: "var(--danger-muted)", borderRadius: "var(--radius-md)",
+          border: "1px solid var(--danger)", margin: "0 0 20px",
+          fontSize: "13px",
+        }}>
           {error}
         </div>
       )}
@@ -188,7 +205,7 @@ function RoleDetailPage({ role, onBack }) {
         <>
           <div style={{
             display: "flex",
-            gap: "16px",
+            gap: "12px",
             flex: 1,
             overflowX: "auto",
             overflowY: "hidden",
@@ -196,83 +213,141 @@ function RoleDetailPage({ role, onBack }) {
           }}>
             {stages.map((s) => {
               const columnApps = groupedApplications[s.name] || [];
+              const stageVar = `var(--stage-${s.name}, var(--text-muted))`;
               return (
                 <div
                   key={s.name}
                   style={{
-                    minWidth: "320px",
+                    minWidth: "300px",
                     flexShrink: 0,
-                    background: "#2a2a2a",
-                    borderRadius: "12px",
-                    padding: "16px",
+                    background: "var(--bg-surface)",
+                    borderRadius: "var(--radius-lg)",
                     display: "flex",
                     flexDirection: "column",
                     overflowY: "auto",
                     scrollbarWidth: "thin",
-                    border: "1px solid #444",
-                    boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
+                    border: "1px solid var(--border-subtle)",
+                    overflow: "hidden",
                   }}
                 >
+                  {/* Stage accent strip */}
+                  <div style={{ height: "3px", background: stageVar, flexShrink: 0 }} />
+
                   {/* Column header */}
                   <div style={{
-                    fontWeight: "700",
-                    fontSize: "13px",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.08em",
-                    color: "#aaa",
-                    marginBottom: "12px",
+                    padding: "14px 16px 10px",
                     display: "flex",
                     justifyContent: "space-between",
                     alignItems: "center",
+                    borderBottom: "1px solid var(--border-subtle)",
+                    flexShrink: 0,
                   }}>
-                    <span>{s.name}</span>
-                    <span style={{
-                      background: "#3a3a3a",
-                      borderRadius: "12px",
-                      padding: "2px 8px",
-                      fontSize: "11px",
-                      color: "#777",
-                    }}>
-                      {/* Show count+  when a next page exists — loaded count may undercount */}
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <span style={{
+                        width: "8px", height: "8px", borderRadius: "50%",
+                        background: stageVar, flexShrink: 0,
+                      }} />
+                      <span style={{
+                        fontWeight: 600,
+                        fontSize: "12px",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.07em",
+                        color: "var(--text-secondary)",
+                      }}>
+                        {s.name}
+                      </span>
+                    </div>
+                    <span className="badge badge-count mono">
                       {columnApps.length}{nextCursor ? "+" : ""}
                     </span>
                   </div>
 
-                  {/* Candidate cards */}
-                  {columnApps.map((app) => (
-                    <div
-                      key={app.application_id}
-                      style={{
-                        background: "#1e1e1e",
-                        borderRadius: "8px",
-                        padding: "12px",
-                        marginBottom: "8px",
-                        cursor: "pointer",
-                        border: "1px solid #444",
-                        transition: "all 0.2s ease",
-                        boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.transform = "translateY(-2px)";
-                        e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.4)";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.transform = "translateY(0)";
-                        e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.2)";
-                      }}
-                      onClick={() => setSelectedCandidate(app)}
-                    >
-                      <div style={{ fontWeight: "600", marginBottom: "4px", color: "#fff" }}>
-                        {app.candidate_name}
-                      </div>
-                      <div style={{ fontSize: "12px", color: "#ccc", marginBottom: "8px" }}>
-                        {app.email}
-                      </div>
-                      <div style={{ fontSize: "11px", color: "#999" }}>
-                        Owner: {app.recruiter}
-                      </div>
-                    </div>
-                  ))}
+                  {/* Cards */}
+                  <div style={{ padding: "10px", overflowY: "auto", flex: 1 }}>
+                    {columnApps.map((app) => {
+                      const initials = app.candidate_name
+                        .split(" ").slice(0, 2)
+                        .map((w) => w[0]?.toUpperCase() ?? "").join("");
+                      return (
+                        <div
+                          key={app.application_id}
+                          style={{
+                            background: "var(--bg-raised)",
+                            borderRadius: "var(--radius-md)",
+                            padding: "12px",
+                            marginBottom: "8px",
+                            cursor: "pointer",
+                            border: "1px solid var(--border-subtle)",
+                            transition: "border-color 0.15s, box-shadow 0.15s, transform 0.15s",
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.borderColor = "var(--border-strong)";
+                            e.currentTarget.style.boxShadow = "var(--shadow-md)";
+                            e.currentTarget.style.transform = "translateY(-1px)";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.borderColor = "var(--border-subtle)";
+                            e.currentTarget.style.boxShadow = "none";
+                            e.currentTarget.style.transform = "translateY(0)";
+                          }}
+                          onClick={() => setSelectedCandidate(app)}
+                        >
+                          {/* Avatar + name row */}
+                          <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px" }}>
+                            <div style={{
+                              width: "30px", height: "30px",
+                              borderRadius: "50%",
+                              background: "var(--accent-muted)",
+                              border: "1px solid var(--accent-glow)",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              fontSize: "11px",
+                              fontWeight: 700,
+                              color: "var(--accent)",
+                              flexShrink: 0,
+                              fontFamily: "var(--font-mono)",
+                            }}>
+                              {initials}
+                            </div>
+                            <div style={{
+                              fontWeight: 600,
+                              fontSize: "13px",
+                              color: "var(--text-primary)",
+                              whiteSpace: "nowrap",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                            }}>
+                              {app.candidate_name}
+                            </div>
+                          </div>
+
+                          {/* Email */}
+                          <div style={{
+                            fontSize: "11px",
+                            color: "var(--text-muted)",
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            marginBottom: "6px",
+                          }}>
+                            {app.email}
+                          </div>
+
+                          {/* Owner */}
+                          <div style={{
+                            fontSize: "11px",
+                            color: "var(--text-muted)",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "4px",
+                          }}>
+                            <span style={{ opacity: 0.6 }}>↳</span> {app.recruiter}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               );
             })}
