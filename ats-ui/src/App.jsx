@@ -1,25 +1,38 @@
 // src/App.jsx
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import RolesPage      from "./pages/RolesPage";
 import RoleDetailPage from "./pages/RoleDetailPage";
+import SettingsPage   from "./pages/SettingsPage";
 import LoginPage      from "./pages/LoginPage";
 import Navbar         from "./components/Navbar";
 import { ToastProvider }  from "./toast/ToastContext";
 import ToastContainer     from "./toast/ToastContainer";
-import { fetchRole }      from "./api";
+import { fetchRole, fetchMe } from "./api";
 
 export default function App() {
   const [authenticated, setAuthenticated] = useState(!!localStorage.getItem("token"));
+  const [user,          setUser]          = useState(null);
   const [selectedRole,  setSelectedRole]  = useState(null);
+  const [page,          setPage]          = useState("roles"); // "roles" | "settings"
+
+  // Fetch the logged-in user once after authentication so every page
+  // (Navbar, SettingsPage) shares the same object without extra round-trips.
+  useEffect(() => {
+    if (!authenticated) { setUser(null); return; }
+    fetchMe().then(me => { if (me) setUser(me); }).catch(() => {});
+  }, [authenticated]);
 
   const handleLogout = () => {
     localStorage.removeItem("token");
+    setUser(null);
     setSelectedRole(null);
+    setPage("roles");
     setAuthenticated(false);
   };
 
   // Show board immediately with list projection, then upgrade to full detail silently
   const handleRoleSelect = (role) => {
+    setPage("roles");
     setSelectedRole(role);
     fetchRole(role.id)
       .then(full => { if (full) setSelectedRole(full); })
@@ -39,11 +52,23 @@ export default function App() {
     <ToastProvider>
       <ToastContainer />
       <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
-        <Navbar onLogout={handleLogout} />
-        {selectedRole
-          ? <RoleDetailPage role={selectedRole} onBack={() => setSelectedRole(null)} />
-          : <RolesPage onRoleSelect={handleRoleSelect} />
-        }
+        <Navbar
+          user={user}
+          onLogout={handleLogout}
+          onSettings={() => { setSelectedRole(null); setPage("settings"); }}
+        />
+
+        {page === "settings" && (
+          <SettingsPage user={user} onBack={() => setPage("roles")} />
+        )}
+
+        {page === "roles" && selectedRole && (
+          <RoleDetailPage role={selectedRole} onBack={() => setSelectedRole(null)} />
+        )}
+
+        {page === "roles" && !selectedRole && (
+          <RolesPage onRoleSelect={handleRoleSelect} />
+        )}
       </div>
     </ToastProvider>
   );

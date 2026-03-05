@@ -58,6 +58,16 @@ export const fetchMe = () => apiFetch("/auth/me");
 
 export const fetchRecruiters = () => apiFetch("/recruiters");
 export const fetchClients    = () => apiFetch("/clients");
+export const createClient    = (name) => apiFetch("/clients", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ name }),
+});
+export const updateClient    = (id, name) => apiFetch(`/clients/${id}`, {
+  method: "PATCH",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ name }),
+});
 
 // ── Roles ─────────────────────────────────────────────────────────────────────
 

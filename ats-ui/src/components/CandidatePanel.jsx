@@ -279,6 +279,7 @@ export default function CandidatePanel({ application, roleId, onClose, onStageCh
         {!loading && !error && tab === "comments" && (
           <CommentsTab
             comments={comments}
+            recruiters={recruiters}
             newComment={newComment}
             isPrivate={isPrivate}
             saving={saving}

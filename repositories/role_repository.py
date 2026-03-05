@@ -1,6 +1,6 @@
 # repositories/role_repository.py
 from typing import Optional
-from db import get_db_conn
+from db import get_db_conn, get_connection
 
 
 def list_roles(
@@ -195,6 +195,43 @@ def list_clients() -> list:
         try:
             cur.execute("SELECT id, name FROM clients ORDER BY name ASC")
             return [{"id": r[0], "name": r[1]} for r in cur.fetchall()]
+        finally:
+            cur.close()
+
+
+def create_client(name: str) -> dict:
+    with get_db_conn() as conn:
+        cur = conn.cursor()
+        try:
+            cur.execute(
+                "INSERT INTO clients (name) VALUES (%s) RETURNING id, name",
+                (name,)
+            )
+            row = cur.fetchone()
+            conn.commit()
+            return {"id": row[0], "name": row[1]}
+        except Exception as e:
+            conn.rollback()
+            raise e
+        finally:
+            cur.close()
+
+def update_client(client_id: int, name: str) -> Optional[dict]:
+    with get_db_conn() as conn:
+        cur = conn.cursor()
+        try:
+            cur.execute(
+                "UPDATE clients SET name = %s WHERE id = %s RETURNING id, name",
+                (name, client_id)
+            )
+            row = cur.fetchone()
+            if not row:
+                return None
+            conn.commit()
+            return {"id": row[0], "name": row[1]}
+        except Exception as e:
+            conn.rollback()
+            raise e
         finally:
             cur.close()
 

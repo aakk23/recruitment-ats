@@ -26,27 +26,108 @@ export const sc = (n) => STAGE_COLOURS[n?.toLowerCase()] ?? "var(--text-muted)";
 
 // ── @mention text helpers ─────────────────────────────────────────────────────
 
-// Given textarea value + cursor position, find the active @-mention token.
+// Walk backwards from cursor to find an active @token being typed right now.
 // Returns { query, start, end } or null.
+//
+// Only returns a result while the user is mid-token — i.e. no whitespace
+// between the '@' and the cursor. Once they type a space (confirming or
+// dismissing the mention), the query would contain a space and we return null.
 export function getActiveMention(text, cursor) {
   let i = cursor - 1;
   while (i >= 0 && text[i] !== "@" && text[i] !== "\n" && !/\s/.test(text[i])) i--;
   if (i >= 0 && text[i] === "@") {
     const query = text.slice(i + 1, cursor);
+    // Active only while the user hasn't yet typed a space past the token.
     if (!/\s/.test(query)) return { query, start: i, end: cursor };
   }
   return null;
 }
 
-// Extract all @Name tokens from comment text, return matching recruiter ids.
+// Extract recruiter ids for every @Name token found in comment text.
+//
+// Bug fixed: the old regex /@([\w .'-]+)/g allowed spaces inside the token,
+// so "@raj please check" was parsed as one mention: "raj please check".
+// Since no recruiter name matches that string, tagging silently broke.
+//
+// New approach: scan for each '@', then try every known recruiter name at that
+// position (longest first so "Raj Kumar" wins over "Raj"). Accept the match
+// only if it ends at a word boundary — space, punctuation, or end-of-string.
 export function extractTaggedIds(text, recruiters) {
-  const mentions = [...text.matchAll(/@([\w .'-]+)/g)].map(m => m[1].trim());
-  const ids = [];
-  for (const m of mentions) {
-    const r = recruiters.find(r => r.name.toLowerCase() === m.toLowerCase());
-    if (r && !ids.includes(r.id)) ids.push(r.id);
+  const ids   = [];
+  // Sort descending by name length so longer names are tried first.
+  const byLen = [...recruiters].sort((a, b) => b.name.length - a.name.length);
+
+  let i = 0;
+  while (i < text.length) {
+    if (text[i] !== "@") { i++; continue; }
+
+    const rest = text.slice(i + 1);
+    for (const r of byLen) {
+      if (rest.toLowerCase().startsWith(r.name.toLowerCase())) {
+        // Must be followed by a non-name character (or end of string).
+        const charAfter = rest[r.name.length];
+        if (charAfter === undefined || /[\s,.\-!?;:()\n]/.test(charAfter)) {
+          if (!ids.includes(r.id)) ids.push(r.id);
+          break; // only one match per '@'
+        }
+      }
+    }
+    i++;
   }
   return ids;
+}
+
+// Split comment text into alternating plain/mention segments for rendering.
+// Returns an array of { type: "text"|"mention", value: string }.
+//
+// Uses the same longest-first exact-match strategy as extractTaggedIds so that
+// "@Raj Kumar please check" yields [mention:"@Raj Kumar", text:" please check"]
+// instead of highlighting the whole sentence as one blue chip.
+//
+// recruiterNames is string[] — just the names, no ids needed here.
+export function splitMentions(text, recruiterNames) {
+  if (!text) return [{ type: "text", value: "" }];
+
+  // Sort descending by length so "Raj Kumar" is tried before "Raj".
+  const byLen = [...recruiterNames].sort((a, b) => b.length - a.length);
+  const parts = [];
+  let pos = 0;
+
+  while (pos < text.length) {
+    const atIdx = text.indexOf("@", pos);
+    if (atIdx === -1) {
+      // No more @ — remainder is plain text.
+      parts.push({ type: "text", value: text.slice(pos) });
+      break;
+    }
+
+    // Plain text before this '@'
+    if (atIdx > pos) parts.push({ type: "text", value: text.slice(pos, atIdx) });
+
+    // Try to match a known recruiter name at atIdx+1
+    const rest = text.slice(atIdx + 1);
+    let matched = null;
+    for (const name of byLen) {
+      if (rest.toLowerCase().startsWith(name.toLowerCase())) {
+        const charAfter = rest[name.length];
+        if (charAfter === undefined || /[\s,.\-!?;:()\n]/.test(charAfter)) {
+          matched = name;
+          break;
+        }
+      }
+    }
+
+    if (matched) {
+      parts.push({ type: "mention", value: "@" + text.slice(atIdx + 1, atIdx + 1 + matched.length) });
+      pos = atIdx + 1 + matched.length;
+    } else {
+      // '@' with no matching name — treat it as plain text
+      parts.push({ type: "text", value: "@" });
+      pos = atIdx + 1;
+    }
+  }
+
+  return parts.length ? parts : [{ type: "text", value: text }];
 }
 
 // ── LockIcon SVG ──────────────────────────────────────────────────────────────

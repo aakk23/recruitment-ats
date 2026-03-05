@@ -1,15 +1,10 @@
 // src/components/Navbar.jsx
+// user is fetched once in App.jsx and passed down — avoids a duplicate /auth/me call.
 import { useState, useEffect, useRef } from "react";
-import { fetchMe } from "../api";
 
-export default function Navbar({ onLogout }) {
-  const [user,     setUser]     = useState(null);
-  const [open,     setOpen]     = useState(false);
+export default function Navbar({ user, onLogout, onSettings }) {
+  const [open, setOpen] = useState(false);
   const ref = useRef(null);
-
-  useEffect(() => {
-    fetchMe().then((me) => { if (me) setUser(me); }).catch(() => {});
-  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -69,6 +64,15 @@ export default function Navbar({ onLogout }) {
               maxWidth: "140px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
             }}>{user.name}</span>
           )}
+          {/* Admin badge */}
+          {user?.is_admin && (
+            <span style={{
+              fontSize: "9px", fontWeight: 700, letterSpacing: "0.05em",
+              color: "var(--accent)", background: "var(--accent-muted)",
+              border: "1px solid rgba(37,99,235,0.3)",
+              borderRadius: "4px", padding: "1px 5px", flexShrink: 0,
+            }}>ADMIN</span>
+          )}
           {/* Chevron */}
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none"
             style={{ color: "var(--text-muted)", transition: "transform 0.15s", transform: open ? "rotate(180deg)" : "none" }}>
@@ -88,11 +92,19 @@ export default function Navbar({ onLogout }) {
               <div style={{ padding: "12px 14px", borderBottom: "1px solid var(--border-subtle)" }}>
                 <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", marginBottom: "2px" }}>{user.name}</div>
                 <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{user.email}</div>
+                {user.is_admin && (
+                  <div style={{ fontSize: "10px", color: "var(--accent)", marginTop: "4px", fontWeight: 600 }}>
+                    Administrator
+                  </div>
+                )}
               </div>
             )}
             <div style={{ padding: "4px 0" }}>
-              {/* Settings placeholder */}
-              <DropdownItem icon="⚙" label="Settings" disabled hint="Coming soon" />
+              <DropdownItem
+                icon="⚙"
+                label="Settings"
+                onClick={() => { setOpen(false); onSettings?.(); }}
+              />
               <div style={{ height: "1px", background: "var(--border-subtle)", margin: "4px 0" }} />
               <DropdownItem icon="→" label="Sign out" danger onClick={() => { setOpen(false); onLogout(); }} />
             </div>

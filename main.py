@@ -2,7 +2,8 @@
 import os
 from typing import Optional, List
 
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Depends, Query
+
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Depends, Query, Body
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
@@ -36,6 +37,8 @@ from repositories.role_repository import (
     update_role_visibility,
     role_exists,
     list_clients,
+    create_client,
+    update_client,
 )
 from repositories.recruiter_repository import (
     find_recruiter_by_email,
@@ -71,6 +74,14 @@ MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024
 
 ALLOWED_VISIBILITY = {"published", "internal", "closed"}
 ALLOWED_JOB_TYPES  = {"full-time", "part-time", "contract", "freelance", "internship"}
+
+
+def require_admin(user_id: int):
+    """Raise 403 if the recruiter is not an admin."""
+    # This function requires find_recruiter_by_id to be imported
+    user = find_recruiter_by_id(user_id)
+    if not user or not user.get("is_admin"):
+        raise HTTPException(status_code=403, detail="Admin access required")
 
 
 def validate_resume(resume: UploadFile) -> bytes:
@@ -208,8 +219,51 @@ class AddCommentRequest(BaseModel):
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
 
+# @app.post("/auth/login")
+# def login(form_data: OAuth2PasswordRequestForm = Depends()):
+#     user = find_recruiter_by_email(form_data.username)
+#     if not user or not verify_password(form_data.password, user["password_hash"]):
+#         raise HTTPException(status_code=401, detail="Invalid credentials")
+#     token = create_access_token(data={"sub": str(user["id"])})
+#     return {"access_token": token, "token_type": "bearer"}
+
+
+# # @app.get("/auth/me")
+# # def get_me(user_id: int = Depends(get_current_user)):
+# #     user = find_recruiter_by_id(user_id)
+# #     if not user:
+# #         raise HTTPException(status_code=401, detail="User not found")
+# #     return user
+
+# @app.get("/auth/me")
+# def get_me(user_id: int = Depends(get_current_user)):
+#     conn = get_connection()
+#     cur = conn.cursor()
+
+#     cur.execute(
+#         "SELECT id, name, email, is_admin FROM recruiters WHERE id = %s",
+#         (user_id,)
+#     )
+#     user = cur.fetchone()
+
+#     cur.close()
+#     conn.close()
+
+#     if not user:
+#         raise HTTPException(status_code=401, detail="User not found")
+
+#     return {
+#         "id":       user[0],
+#         "name":     user[1],
+#         "email":    user[2],
+#         "is_admin": user[3],
+#     }
+
+
+
 @app.post("/auth/login")
 def login(form_data: OAuth2PasswordRequestForm = Depends()):
+    # This function requires find_recruiter_by_email to be imported
     user = find_recruiter_by_email(form_data.username)
     if not user or not verify_password(form_data.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="Invalid credentials")
@@ -223,6 +277,131 @@ def get_me(user_id: int = Depends(get_current_user)):
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
     return user
+
+
+
+# ── Clients ───────────────────────────────────────────────────────────────────
+
+# @app.get("/clients")
+# def list_clients():
+#     """Return all clients ordered by name. No auth required — used in dropdowns."""
+#     conn = get_connection()
+#     cur = conn.cursor()
+#     try:
+#         cur.execute("SELECT id, name FROM clients ORDER BY name ASC")
+#         rows = cur.fetchall()
+#         return [{"id": row[0], "name": row[1]} for row in rows]
+#     finally:
+#         cur.close()
+#         conn.close()
+
+
+# @app.post("/clients", status_code=201)
+# def create_client(
+#     payload: dict = Body(...),
+#     user_id: int  = Depends(get_current_user),
+# ):
+#     """Create a new client. Admin only."""
+#     require_admin(user_id)
+
+#     name = (payload.get("name") or "").strip()
+#     if not name:
+#         raise HTTPException(status_code=400, detail="name is required")
+
+#     conn = get_connection()
+#     cur = conn.cursor()
+#     try:
+#         cur.execute(
+#             "INSERT INTO clients (name) VALUES (%s) RETURNING id, name",
+#             (name,)
+#         )
+#         row = cur.fetchone()
+#         conn.commit()
+#         return {"id": row[0], "name": row[1]}
+#     except Exception as e:
+#         conn.rollback()
+#         raise HTTPException(status_code=500, detail=str(e))
+#     finally:
+#         cur.close()
+#         conn.close()
+
+
+# @app.patch("/clients/{client_id}")
+# def update_client(
+#     client_id: int,
+#     payload: dict = Body(...),
+#     user_id: int  = Depends(get_current_user),
+# ):
+#     """Rename a client. Admin only."""
+#     require_admin(user_id)
+
+#     name = (payload.get("name") or "").strip()
+#     if not name:
+#         raise HTTPException(status_code=400, detail="name is required")
+
+#     conn = get_connection()
+#     cur = conn.cursor()
+#     try:
+#         cur.execute(
+#             "UPDATE clients SET name = %s WHERE id = %s RETURNING id, name",
+#             (name, client_id)
+#         )
+#         row = cur.fetchone()
+#         if not row:
+#             raise HTTPException(status_code=404, detail="Client not found")
+#         conn.commit()
+#         return {"id": row[0], "name": row[1]}
+#     except HTTPException:
+#         raise
+#     except Exception as e:
+#         conn.rollback()
+#         raise HTTPException(status_code=500, detail=str(e))
+#     finally:
+#         cur.close()
+#         conn.close()
+
+@app.get("/clients")
+def get_clients(user_id: int = Depends(get_current_user)):
+    return list_clients()
+
+
+@app.post("/clients", status_code=201)
+def post_client(
+    payload: dict = Body(...),
+    user_id: int  = Depends(get_current_user),
+):
+    require_admin(user_id)
+    name = (payload.get("name") or "").strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="name is required")
+    try:
+        return create_client(name)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.patch("/clients/{client_id}")
+def patch_client(
+    client_id: int,
+    payload:   dict = Body(...),
+    user_id:   int  = Depends(get_current_user),
+):
+    require_admin(user_id)
+    name = (payload.get("name") or "").strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="name is required")
+    result = update_client(client_id, name)
+    if not result:
+        raise HTTPException(status_code=404, detail="Client not found")
+    return result
+
+
+
+
+
+
+
+
 
 
 # ── Recruiters (for dropdowns) ────────────────────────────────────────────────

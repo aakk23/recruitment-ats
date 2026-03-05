@@ -3,24 +3,24 @@
 // CommentRow and CommentEmptyState live here — they are only used by this tab.
 
 import { useState } from "react";
-import { fmt, LockIcon } from "./shared";
+import { fmt, LockIcon, splitMentions } from "./shared";
 import CommentComposer from "./CommentComposer";
 
 // ── Comment text — renders @mentions as highlighted chips ─────────────────────
 
-function CommentText({ text }) {
-  const parts = text.split(/(@[\w .'-]+)/g);
+function CommentText({ text, recruiterNames }) {
+  const parts = splitMentions(text, recruiterNames);
   return (
     <>
       {parts.map((part, i) =>
-        part.startsWith("@") ? (
+        part.type === "mention" ? (
           <span key={i} style={{
             color: "var(--accent)", fontWeight: 600,
             background: "rgba(37,99,235,0.12)",
             borderRadius: "4px", padding: "0 3px",
-          }}>{part}</span>
+          }}>{part.value}</span>
         ) : (
-          <span key={i}>{part}</span>
+          <span key={i}>{part.value}</span>
         )
       )}
     </>
@@ -29,7 +29,7 @@ function CommentText({ text }) {
 
 // ── Single comment row ────────────────────────────────────────────────────────
 
-function CommentRow({ comment }) {
+function CommentRow({ comment, recruiterNames }) {
   const ini = (comment.recruiter || "?").split(" ").slice(0, 2).map(w => w[0]?.toUpperCase() ?? "").join("");
   const [hov, setHov] = useState(false);
 
@@ -86,7 +86,7 @@ function CommentRow({ comment }) {
           borderRadius: "var(--radius-md)",
           padding: "8px 12px",
         }}>
-          <CommentText text={comment.comment} />
+          <CommentText text={comment.comment} recruiterNames={recruiterNames} />
         </div>
       </div>
     </div>
@@ -123,6 +123,7 @@ function CommentEmptyState() {
 
 export default function CommentsTab({
   comments,
+  recruiters,
   // composer props — passed straight through to CommentComposer
   newComment, isPrivate, saving, saveError,
   mention, mentionMatches, mentionIdx, liveTaggedNames,
@@ -130,13 +131,14 @@ export default function CommentsTab({
   onCommentChange, onCommentKeyDown, onTogglePrivate,
   onInsertMention, onMentionIdx, onAddComment,
 }) {
+  const recruiterNames = recruiters.map(r => r.name);
   return (
     <>
       {/* Scrollable list */}
       <div style={{ flex: 1, overflowY: "auto", padding: "14px 20px 6px" }}>
         {comments.length === 0
           ? <CommentEmptyState />
-          : comments.map((c) => <CommentRow key={c.id} comment={c} />)
+          : comments.map((c) => <CommentRow key={c.id} comment={c} recruiterNames={recruiterNames} />)
         }
       </div>
 
