@@ -6,7 +6,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import {
   fetchComments, addComment,
   fetchStages, fetchCandidate, fetchEvents,
-  fetchRecruiters, updateOwnership,
+  fetchRecruiters, updateOwnership, resolveFileUrl,
 } from "../api";
 
 import { getActiveMention, extractTaggedIds, CentredMsg } from "./candidate/shared";
@@ -203,21 +203,24 @@ export default function CandidatePanel({ application, roleId, onClose, onStageCh
     }}>
 
       {/* Resume preview pane — only shown when showResume + URL exists */}
-      {showResume && candidate?.resume_url && (
-        <div style={{ flex: 1, borderRight: "1px solid var(--border-subtle)", display: "flex", flexDirection: "column", minWidth: 0 }}>
-          <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-subtle)", display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
-            <span style={{ fontSize: "13px", fontWeight: 600 }}>Resume Preview</span>
-            <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-              <a href={candidate.resume_url} target="_blank" rel="noreferrer" style={{ fontSize: "12px", color: "var(--accent)", padding: "3px 10px", border: "1px solid var(--accent)", borderRadius: "var(--radius-sm)", textDecoration: "none" }}>↓ Download</a>
-              <button onClick={() => setShowResume(false)} style={{ background: "transparent", border: "none", color: "var(--text-muted)", fontSize: "18px" }}
-                onMouseEnter={e => e.currentTarget.style.color = "var(--text-primary)"}
-                onMouseLeave={e => e.currentTarget.style.color = "var(--text-muted)"}
-              >×</button>
+      {showResume && candidate?.resume_url && (() => {
+        const resumeHref = resolveFileUrl(candidate.resume_url);
+        return (
+          <div style={{ flex: 1, borderRight: "1px solid var(--border-subtle)", display: "flex", flexDirection: "column", minWidth: 0 }}>
+            <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-subtle)", display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
+              <span style={{ fontSize: "13px", fontWeight: 600 }}>Resume Preview</span>
+              <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                <a href={resumeHref} target="_blank" rel="noreferrer" download style={{ fontSize: "12px", color: "var(--accent)", padding: "3px 10px", border: "1px solid var(--accent)", borderRadius: "var(--radius-sm)", textDecoration: "none" }}>↓ Download</a>
+                <button onClick={() => setShowResume(false)} style={{ background: "transparent", border: "none", color: "var(--text-muted)", fontSize: "18px" }}
+                  onMouseEnter={e => e.currentTarget.style.color = "var(--text-primary)"}
+                  onMouseLeave={e => e.currentTarget.style.color = "var(--text-muted)"}
+                >×</button>
+              </div>
             </div>
+            <iframe src={resumeHref} style={{ flex: 1, border: "none", background: "#fff" }} title="Resume Preview" />
           </div>
-          <iframe src={candidate.resume_url} style={{ flex: 1, border: "none", background: "#fff" }} title="Resume Preview" />
-        </div>
-      )}
+        );
+      })()}
 
       {/* Main 420px panel column */}
       <div style={{ width: "420px", flexShrink: 0, display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>

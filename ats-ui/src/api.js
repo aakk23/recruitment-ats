@@ -1,6 +1,16 @@
 // src/api.js
 const BASE_URL = "http://127.0.0.1:8000";
 
+// Resolve a file path from the API to a full URL.
+// The backend may return a relative path like "/files/resume.pdf".
+// Using it directly as href or iframe src would resolve to the React dev
+// server instead of the API. Always prefix with BASE_URL when not absolute.
+export function resolveFileUrl(url) {
+  if (!url) return null;
+  if (/^https?:\/\//i.test(url)) return url;
+  return `${BASE_URL}${url.startsWith("/") ? "" : "/"}${url}`;
+}
+
 function getAuthHeaders() {
   const token = localStorage.getItem("token");
   return token ? { Authorization: `Bearer ${token}` } : {};

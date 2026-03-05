@@ -2,6 +2,7 @@
 // Overview tab content: role details summary + ownership editor.
 
 import { Section, Row, SmallSelect, Btn, fmt } from "./shared";
+import { resolveFileUrl } from "../../api";
 
 export default function OverviewTab({
   application,
@@ -118,8 +119,8 @@ export default function OverviewTab({
                 Preview
               </button>
               <a
-                href={candidate.resume_url}
-                target="_blank" rel="noreferrer"
+                href={resolveFileUrl(candidate.resume_url)}
+                target="_blank" rel="noreferrer" download
                 style={{
                   fontSize: "12px", color: "var(--text-secondary)",
                   background: "var(--bg-overlay)", border: "1px solid var(--border-default)",
