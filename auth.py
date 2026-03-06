@@ -50,6 +50,7 @@ def set_auth_cookie(response: Response, token: str):
         samesite="lax",
         max_age=COOKIE_MAX_AGE,
         path="/",
+        domain="localhost",   # set to your domain in production
     )
 
 def get_current_user(access_token: str = Cookie(default=None)) -> int:

@@ -1,5 +1,5 @@
 // src/api.js
-const BASE_URL = "http://127.0.0.1:8000";
+const BASE_URL = "/api"; // Proxy to backend in development; set to actual API URL in production
 
 // Resolve a file path from the API to a full URL.
 // The backend may return a relative path like "/files/resume.pdf".
