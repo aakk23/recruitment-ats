@@ -162,6 +162,15 @@ export async function login(email, password) {
 export const logout  = () => apiFetch("/auth/logout",  { method: "POST" });
 export const refresh = () => apiFetch("/auth/refresh", { method: "POST" });
 export const fetchMe = () => apiFetch("/auth/me");
+export const changePassword = (currentPassword, newPassword) =>
+  apiFetch("/auth/change-password", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      current_password: currentPassword,
+      new_password: newPassword,
+    }),
+  });
 
 export function cancelRefresh() {
   clearTimeout(_refreshTimer);
@@ -213,6 +222,52 @@ export const updateVisibility = (roleId, visibility) =>
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ visibility }),
   });
+
+// ── User management ──────────────────────────────────────────────────────────
+
+export function fetchUsers({ search, roleId, status } = {}) {
+  const params = new URLSearchParams();
+  if (search) params.set("search", search);
+  if (roleId) params.set("role_id", roleId);
+  if (status) params.set("status", status);
+  return apiFetch(`/users${params.toString() ? `?${params.toString()}` : ""}`);
+}
+
+export const createUser = (body) =>
+  apiFetch("/users", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+export const updateUser = (userId, body) =>
+  apiFetch(`/users/${userId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+export const deleteUser = (userId) =>
+  apiFetch(`/users/${userId}`, { method: "DELETE" });
+
+export const fetchUserRoles = () => apiFetch("/user-roles");
+
+export const createUserRole = (body) =>
+  apiFetch("/user-roles", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+export const updateUserRole = (roleId, body) =>
+  apiFetch(`/user-roles/${roleId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+export const deleteUserRole = (roleId) =>
+  apiFetch(`/user-roles/${roleId}`, { method: "DELETE" });
 
 // ── Stages & substages ────────────────────────────────────────────────────────
 
@@ -317,6 +372,4 @@ export const addComment = (applicationId, comment, isPrivate = false, taggedIds 
 
 export const fetchEvents = (applicationId) =>
   apiFetch(`/applications/${applicationId}/events`);
-
-
 

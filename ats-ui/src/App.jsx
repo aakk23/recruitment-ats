@@ -5,6 +5,7 @@ import RoleDetailPage from "./pages/RoleDetailPage";
 import SettingsPage   from "./pages/SettingsPage";
 import LoginPage      from "./pages/LoginPage";
 import Navbar         from "./components/Navbar";
+import ChangePasswordPanel from "./components/ChangePasswordPanel";
 import { ToastProvider }  from "./toast/ToastContext";
 import ToastContainer     from "./toast/ToastContainer";
 import { fetchRole, fetchMe, logout, scheduleRefresh, cancelRefresh } from "./api";
@@ -17,6 +18,7 @@ export default function App() {
   const [user,          setUser]          = useState(null);
   const [selectedRole,  setSelectedRole]  = useState(null);
   const [page,          setPage]          = useState("roles"); // "roles" | "settings"
+  const [showPasswordPanel, setShowPasswordPanel] = useState(false);
 
   // Fetch the logged-in user once after authentication so every page
   // (Navbar, SettingsPage) shares the same object without extra round-trips.
@@ -67,11 +69,18 @@ export default function App() {
     return (
       <ToastProvider>
         <ToastContainer />
-        <LoginPage onLogin={() =>{
-           fetchMe().then(me => { if (me) setUser(me); });
+        <LoginPage
+          onLogin={async () => {
+            const me = await fetchMe();
+            if (!me) {
+              setAuthenticated(false);
+              return;
+            }
+            setUser(me);
             setAuthenticated(true);
-            scheduleRefresh();  
-           }} />
+            scheduleRefresh();
+          }}
+        />
       </ToastProvider>
     );
   }
@@ -85,6 +94,7 @@ export default function App() {
             user={user}
             onLogout={handleLogout}
             onSettings={() => { setSelectedRole(null); setPage("settings"); }}
+            onChangePassword={() => setShowPasswordPanel(true)}
           />
   
           {page === "settings" && (
@@ -98,6 +108,10 @@ export default function App() {
           {page === "roles" && !selectedRole && (
             <RolesPage onRoleSelect={handleRoleSelect} />
           )}
+          <ChangePasswordPanel
+            open={showPasswordPanel}
+            onClose={() => setShowPasswordPanel(false)}
+          />
         </div>
       </ToastProvider>
     </AuthContext.Provider>

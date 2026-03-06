@@ -2,7 +2,7 @@
 // user is fetched once in App.jsx and passed down — avoids a duplicate /auth/me call.
 import { useState, useEffect, useRef } from "react";
 
-export default function Navbar({ user, onLogout, onSettings }) {
+export default function Navbar({ user, onLogout, onSettings, onChangePassword }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
@@ -104,6 +104,11 @@ export default function Navbar({ user, onLogout, onSettings }) {
                 icon="⚙"
                 label="Settings"
                 onClick={() => { setOpen(false); onSettings?.(); }}
+              />
+              <DropdownItem
+                icon="🔑"
+                label="Change Password"
+                onClick={() => { setOpen(false); onChangePassword?.(); }}
               />
               <div style={{ height: "1px", background: "var(--border-subtle)", margin: "4px 0" }} />
               <DropdownItem icon="→" label="Sign out" danger onClick={() => { setOpen(false); onLogout(); }} />

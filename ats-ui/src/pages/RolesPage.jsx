@@ -19,7 +19,7 @@ function initials(title = "") {
 }
 
 export default function RolesPage({ onRoleSelect }) {
-  const { user } = useAuth();
+  const user = useAuth();
   const isAdmin = user?.is_admin===true;
   const [vis,         setVis]         = useState("");
   const [roles,       setRoles]       = useState([]);

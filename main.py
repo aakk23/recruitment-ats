@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
 
 from config import settings
-from auth import verify_password, create_access_token, get_current_user, set_auth_cookie
+from auth import verify_password, hash_password, create_access_token, get_current_user, set_auth_cookie
 from services.file_service import get_file_service
 
 from repositories.candidate_repository import (
@@ -44,6 +44,8 @@ from repositories.recruiter_repository import (
     find_recruiter_by_email,
     find_recruiter_by_id,
     list_recruiters,
+    get_recruiter_password_hash,
+    update_recruiter_password,
 )
 from repositories.stage_repository import (
     get_stages_for_role,
@@ -54,6 +56,17 @@ from repositories.stage_repository import (
     delete_substage,
 )
 from repositories.event_repository import get_events, log_event, RESUME_UPLOADED
+from repositories.user_management_repository import (
+    list_users,
+    create_user,
+    update_user,
+    delete_user,
+    reset_user_password,
+    list_user_roles,
+    create_user_role,
+    update_user_role,
+    delete_user_role,
+)
 
 # ── App ───────────────────────────────────────────────────────────────────────
 
@@ -82,6 +95,26 @@ def require_admin(user_id: int):
     user = find_recruiter_by_id(user_id)
     if not user or not user.get("is_admin"):
         raise HTTPException(status_code=403, detail="Admin access required")
+
+
+def require_permission(user_id: int, permission: str):
+    user = find_recruiter_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    if user.get("is_admin"):
+        return
+    permissions = user.get("permissions") or []
+    if permission not in permissions:
+        raise HTTPException(status_code=403, detail=f"Missing permission: {permission}")
+
+
+def require_admin_or_permission(user_id: int, permission: str):
+    user = find_recruiter_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    if user.get("is_admin"):
+        return
+    require_permission(user_id, permission)
 
 
 def validate_resume(resume: UploadFile) -> bytes:
@@ -217,6 +250,56 @@ class AddCommentRequest(BaseModel):
         return v.strip()
 
 
+class CreateUserRequest(BaseModel):
+    name: str = Field(..., min_length=1, max_length=200)
+    email: str = Field(..., min_length=3, max_length=255)
+    role_id: Optional[int] = Field(default=None, gt=0)
+    department: Optional[str] = Field(default=None, max_length=120)
+    status: str = Field(default="active")
+    is_admin: bool = Field(default=False)
+
+    @field_validator("status")
+    @classmethod
+    def validate_status(cls, v):
+        if v not in {"active", "disabled"}:
+            raise ValueError("status must be active or disabled")
+        return v
+
+
+class UpdateUserRequest(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=1, max_length=200)
+    email: Optional[str] = Field(default=None, min_length=3, max_length=255)
+    role_id: Optional[int] = Field(default=None, gt=0)
+    department: Optional[str] = Field(default=None, max_length=120)
+    status: Optional[str] = Field(default=None)
+    is_admin: Optional[bool] = Field(default=None)
+    reset_password: bool = Field(default=False)
+
+    @field_validator("status")
+    @classmethod
+    def validate_status(cls, v):
+        if v and v not in {"active", "disabled"}:
+            raise ValueError("status must be active or disabled")
+        return v
+
+
+class CreateUserRoleRequest(BaseModel):
+    name: str = Field(..., min_length=1, max_length=120)
+    description: Optional[str] = Field(default=None, max_length=1000)
+    permissions: List[str] = Field(default_factory=list)
+
+
+class UpdateUserRoleRequest(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=1, max_length=120)
+    description: Optional[str] = Field(default=None, max_length=1000)
+    permissions: Optional[List[str]] = Field(default=None)
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str = Field(..., min_length=1, max_length=255)
+    new_password: str = Field(..., min_length=8, max_length=255)
+
+
 # ── Auth ──────────────────────────────────────────────────────────────────────
 
 # @app.post("/auth/login")
@@ -276,6 +359,8 @@ def login(response: Response, form_data: OAuth2PasswordRequestForm = Depends()):
     user = find_recruiter_by_email(form_data.username)
     if not user or not verify_password(form_data.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="Invalid credentials")
+    if user.get("is_active") is False:
+        raise HTTPException(status_code=403, detail="User is disabled")
     token = create_access_token(data={"sub": str(user["id"])})
     set_auth_cookie(response, token)
     return {"ok": True}   # ← no token in body
@@ -294,6 +379,25 @@ def logout(response: Response):
     return {"ok": True}
 
 
+@app.post("/auth/change-password")
+def change_password(
+    body: ChangePasswordRequest,
+    user_id: int = Depends(get_current_user),
+):
+    current_hash = get_recruiter_password_hash(user_id)
+    if not current_hash:
+        raise HTTPException(status_code=404, detail="User not found")
+    if not verify_password(body.current_password, current_hash):
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+    if body.current_password == body.new_password:
+        raise HTTPException(status_code=400, detail="New password must be different")
+
+    updated = update_recruiter_password(user_id, hash_password(body.new_password))
+    if not updated:
+        raise HTTPException(status_code=404, detail="User not found")
+    return {"ok": True}
+
+
 
 
 @app.get("/auth/me")
@@ -303,6 +407,119 @@ def get_me(user_id: int = Depends(get_current_user)):
         raise HTTPException(status_code=401, detail="User not found")
     return user
 
+
+# ── Users & Custom Roles ─────────────────────────────────────────────────────
+
+@app.get("/users")
+def get_users(
+    search: Optional[str] = Query(default=None, max_length=200),
+    role_id: Optional[int] = Query(default=None),
+    status: Optional[str] = Query(default=None),
+    user_id: int = Depends(get_current_user),
+):
+    if status and status not in {"active", "disabled"}:
+        raise HTTPException(status_code=400, detail="Invalid status")
+    return list_users(search=search, role_id=role_id, status=status)
+
+
+@app.post("/users", status_code=201)
+def post_user(body: CreateUserRequest, user_id: int = Depends(get_current_user)):
+    require_admin_or_permission(user_id, "users.create")
+    try:
+        return create_user(
+            name=body.name.strip(),
+            email=body.email.strip().lower(),
+            role_id=body.role_id,
+            department=(body.department or "").strip() or None,
+            status=body.status,
+            is_admin=body.is_admin,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.patch("/users/{target_user_id}")
+def patch_user(
+    target_user_id: int,
+    body: UpdateUserRequest,
+    user_id: int = Depends(get_current_user),
+):
+    require_admin_or_permission(user_id, "users.edit")
+
+    if body.reset_password:
+        reset = reset_user_password(target_user_id)
+        if not reset:
+            raise HTTPException(status_code=404, detail="User not found")
+        return {"id": reset["id"], "temp_password": reset["temp_password"]}
+
+    fields = {k: v for k, v in body.model_dump().items() if k != "reset_password" and v is not None}
+    if "name" in fields:
+        fields["name"] = fields["name"].strip()
+    if "email" in fields:
+        fields["email"] = fields["email"].strip().lower()
+    if "department" in fields and fields["department"] is not None:
+        fields["department"] = fields["department"].strip() or None
+
+    updated = update_user(target_user_id, fields)
+    if not updated:
+        raise HTTPException(status_code=404, detail="User not found")
+    return updated
+
+
+@app.delete("/users/{target_user_id}", status_code=204)
+def remove_user(target_user_id: int, user_id: int = Depends(get_current_user)):
+    require_admin_or_permission(user_id, "users.delete")
+    if user_id == target_user_id:
+        raise HTTPException(status_code=400, detail="You cannot delete your own account")
+    if not delete_user(target_user_id):
+        raise HTTPException(status_code=404, detail="User not found")
+
+
+@app.get("/user-roles")
+def get_user_roles(user_id: int = Depends(get_current_user)):
+    return list_user_roles()
+
+
+@app.post("/user-roles", status_code=201)
+def post_user_role(body: CreateUserRoleRequest, user_id: int = Depends(get_current_user)):
+    require_admin_or_permission(user_id, "settings.edit")
+    try:
+        return create_user_role(
+            name=body.name.strip(),
+            description=(body.description or "").strip() or None,
+            permissions=body.permissions or [],
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.patch("/user-roles/{role_id}")
+def patch_user_role(
+    role_id: int,
+    body: UpdateUserRoleRequest,
+    user_id: int = Depends(get_current_user),
+):
+    require_admin_or_permission(user_id, "settings.edit")
+    fields = {k: v for k, v in body.model_dump().items() if v is not None}
+    if "name" in fields:
+        fields["name"] = fields["name"].strip()
+    if "description" in fields and fields["description"] is not None:
+        fields["description"] = fields["description"].strip() or None
+    updated = update_user_role(role_id, fields)
+    if not updated:
+        raise HTTPException(status_code=404, detail="Role not found")
+    return updated
+
+
+@app.delete("/user-roles/{role_id}", status_code=204)
+def remove_user_role(role_id: int, user_id: int = Depends(get_current_user)):
+    require_admin_or_permission(user_id, "settings.edit")
+    if not delete_user_role(role_id):
+        raise HTTPException(status_code=404, detail="Role not found")
 
 
 # ── Clients ───────────────────────────────────────────────────────────────────
@@ -461,7 +678,7 @@ def get_roles(
 
 @app.post("/roles", status_code=201)
 def post_role(body: CreateRoleRequest, user_id: int = Depends(get_current_user)):
-    require_admin(user_id)
+    require_admin_or_permission(user_id, "job:create")
     try:
         return create_role(
             title=body.title,
@@ -497,7 +714,7 @@ def patch_role(
     body:    UpdateRoleRequest,
     user_id: int = Depends(get_current_user),
 ):
-    require_admin(user_id)
+    require_admin_or_permission(user_id, "job:edit")
     if not role_exists(role_id):
         raise HTTPException(status_code=404, detail="Role not found")
     fields = {k: v for k, v in body.model_dump().items() if v is not None}
@@ -513,7 +730,7 @@ def patch_role_visibility(
     body:    UpdateVisibilityRequest,
     user_id: int = Depends(get_current_user),
 ):
-    require_admin(user_id)
+    require_admin_or_permission(user_id, "job:edit")
     result = update_role_visibility(role_id, body.visibility)
     if not result:
         raise HTTPException(status_code=404, detail="Role not found")
@@ -576,6 +793,7 @@ def post_candidate(
     resume:       UploadFile    = File(...),
     user_id:      int           = Depends(get_current_user),
 ):
+    require_admin_or_permission(user_id, "candidate:add")
     file_bytes = validate_resume(resume)
 
     if email:
@@ -660,6 +878,7 @@ def patch_application_stage(
     body:           UpdateStageRequest,
     user_id:        int = Depends(get_current_user),
 ):
+    require_admin_or_permission(user_id, "candidate:move")
     allowed = get_global_allowed_stage_names()
     if body.stage not in allowed:
         raise HTTPException(status_code=400, detail=f"Invalid stage. Allowed: {sorted(allowed)}")
@@ -714,6 +933,7 @@ def post_comment(
     body:           AddCommentRequest,
     user_id:        int = Depends(get_current_user),
 ):
+    require_admin_or_permission(user_id, "comments:add")
     if not application_exists(application_id):
         raise HTTPException(status_code=404, detail="Application not found")
     return add_comment(
