@@ -38,9 +38,10 @@ export default function KanbanBoard({ substages, stageApps, stageName, search, l
 
   // ── Drag handlers ──────────────────────────────────────────────────────────
   const handleDragStart = useCallback((e, appId) => {
+    if (!onMove) return;
     setDraggedId(appId);
     e.dataTransfer.effectAllowed = "move";
-  }, []);
+  }, [onMove]);
 
   const handleDragEnd = useCallback(() => {
     setDraggedId(null);
@@ -62,6 +63,7 @@ export default function KanbanBoard({ substages, stageApps, stageName, search, l
     },
     onDrop: (e) => {
       e.preventDefault();
+      if (!onMove) return;
       if (draggedId == null) return;
       const app = stageApps.find(a => a.application_id === draggedId);
       const currentColId = hasSubstages ? (app?.substage_id ?? null) : null;
@@ -105,6 +107,7 @@ export default function KanbanBoard({ substages, stageApps, stageName, search, l
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
             makeColHandlers={makeColHandlers}
+            canDrag={Boolean(onMove)}
           />
         ))}
       </div>

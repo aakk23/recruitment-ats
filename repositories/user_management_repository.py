@@ -3,6 +3,7 @@ from typing import Optional
 
 from db import get_db_conn
 from auth import hash_password
+from psycopg2.extras import Json
 
 
 def _table_exists(cur, table_name: str) -> bool:
@@ -63,10 +64,10 @@ def create_user_role(name: str, description: Optional[str], permissions: list) -
             cur.execute(
                 """
                 INSERT INTO user_roles (name, description, permissions)
-                VALUES (%s, %s, %s::jsonb)
+                VALUES (%s, %s, %s)
                 RETURNING id, name, description, permissions, created_at
                 """,
-                (name, description, permissions),
+                (name, description, Json(permissions or [])),
             )
             row = cur.fetchone()
             conn.commit()
@@ -103,9 +104,10 @@ def update_user_role(role_id: int, fields: dict) -> Optional[dict]:
             values = []
             for key, value in updates.items():
                 if key == "permissions":
-                    set_clause.append("permissions = %s::jsonb")
-                else:
-                    set_clause.append(f"{key} = %s")
+                    set_clause.append("permissions = %s")
+                    values.append(Json(value or []))
+                    continue
+                set_clause.append(f"{key} = %s")
                 values.append(value)
 
             values.append(role_id)

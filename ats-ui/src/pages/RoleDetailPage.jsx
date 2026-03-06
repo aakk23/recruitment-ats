@@ -7,6 +7,7 @@ import AddCandidatePanel from "../components/AddCandidatePanel";
 import JobPanel          from "../components/JobPanel";
 import { useToast }      from "../toast/ToastContext";
 import { useAuth } from "../useAuth";
+import { hasPermission } from "../permissions";
 import StageTabs from "../components/StageTabs";
 import KanbanBoard from "../components/KanbanBoard";
 import { VisToggle, SearchBox, GhostBtn, BackButton } from "../components/RoleDetailMisc";
@@ -16,7 +17,10 @@ import { css } from "../components/styles";
 
 export default function RoleDetailPage({ role: roleProp, onBack }) {
   const user = useAuth();
-  const isAdmin = user?.is_admin === true;
+  const canAddCandidate = hasPermission(user, "candidate:add");
+  const canMoveCandidate = hasPermission(user, "candidate:move");
+  const canEditJob = hasPermission(user, "job:edit");
+  const canCloseJob = hasPermission(user, "job:close");
   const [role,             setRole]             = useState(roleProp);
   const [apps,             setApps]             = useState([]);
   const [stages,           setStages]           = useState([]);
@@ -80,6 +84,10 @@ export default function RoleDetailPage({ role: roleProp, onBack }) {
 
   // Optimistic move — works for both drag-drop and CandidatePanel stage picker
   const handleStageChange = useCallback((applicationId, newStage, substageId = null) => {
+    if (!canMoveCandidate) {
+      showToast({ type: "error", message: "You do not have permission to move candidates" });
+      return;
+    }
     const snap = appsRef.current;
     const next = snap.map(a =>
       a.application_id === applicationId
@@ -96,9 +104,13 @@ export default function RoleDetailPage({ role: roleProp, onBack }) {
       setApps(snap);
       showToast({ type: "error", message: "Move failed — please try again" });
     });
-  }, [showToast]);
+  }, [canMoveCandidate, showToast]);
 
   const handleVisibilityChange = (vis) => {
+    if (!canCloseJob) {
+      showToast({ type: "error", message: "You do not have permission to change visibility" });
+      return;
+    }
     const prev = role.visibility;
     setRole(r => ({ ...r, visibility: vis }));
     updateVisibility(role.id, vis)
@@ -161,11 +173,13 @@ export default function RoleDetailPage({ role: roleProp, onBack }) {
           {/* Toolbar */}
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
             <SearchBox value={search} onChange={setSearch} />
-            <GhostBtn onClick={() => setShowJobPanel(true)}>Job Details</GhostBtn>
-            <VisToggle visibility={role.visibility} onChange={handleVisibilityChange} />
-            <button onClick={() => setShowAddCandidate(true)} style={css.primaryBtn}>
-              + Add Candidate
-            </button>
+            {canEditJob && <GhostBtn onClick={() => setShowJobPanel(true)}>Job Details</GhostBtn>}
+            {canCloseJob && <VisToggle visibility={role.visibility} onChange={handleVisibilityChange} />}
+            {canAddCandidate && (
+              <button onClick={() => setShowAddCandidate(true)} style={css.primaryBtn}>
+                + Add Candidate
+              </button>
+            )}
           </div>
         </div>
 
@@ -204,7 +218,7 @@ export default function RoleDetailPage({ role: roleProp, onBack }) {
         loading={loading}
         selectedApp={selectedApp}
         onSelect={setSelectedApp}
-        onMove={(appId, substageId) => handleStageChange(appId, activeStage, substageId)}
+        onMove={canMoveCandidate ? ((appId, substageId) => handleStageChange(appId, activeStage, substageId)) : null}
       />
 
       {/* ── Side panels ─────────────────────────────────────────────────────── */}
@@ -225,7 +239,7 @@ export default function RoleDetailPage({ role: roleProp, onBack }) {
           }}
         />
       )}
-      {showJobPanel && (
+      {showJobPanel && canEditJob && (
         <JobPanel
           role={role}
           onClose={() => setShowJobPanel(false)}

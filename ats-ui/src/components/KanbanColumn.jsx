@@ -7,7 +7,7 @@ import KanbanCard from "./KanbanCard";
 export default function KanbanColumn({
   col, apps, stageColor, hasSubstages, search,
   selectedApp, isDragOver, draggedId,
-  onSelect, onDragStart, onDragEnd, makeColHandlers,
+  onSelect, onDragStart, onDragEnd, makeColHandlers, canDrag,
 }) {
   const colRef = useRef(null);
   const handlers = makeColHandlers(col.id, colRef);
@@ -77,6 +77,7 @@ export default function KanbanColumn({
               onSelect={onSelect}
               onDragStart={onDragStart}
               onDragEnd={onDragEnd}
+              canDrag={canDrag}
             />
           ))
         )}

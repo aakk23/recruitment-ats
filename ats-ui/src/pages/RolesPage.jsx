@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import { fetchRoles } from "../api";
 import CreateJobPanel from "../components/CreateJobPanel";
 import { useAuth } from "../useAuth";
+import { hasPermission } from "../permissions";
 
 
 const VIS_TABS = [
@@ -20,7 +21,7 @@ function initials(title = "") {
 
 export default function RolesPage({ onRoleSelect }) {
   const user = useAuth();
-  const isAdmin = user?.is_admin===true;
+  const canCreateJob = hasPermission(user, "job:create");
   const [vis,         setVis]         = useState("");
   const [roles,       setRoles]       = useState([]);
   const [nextCursor,  setNextCursor]  = useState(null);
@@ -55,7 +56,7 @@ export default function RolesPage({ onRoleSelect }) {
             </p>
           </div>
           {/* Only admins see the create button */}
-          {isAdmin && (
+          {canCreateJob && (
           <button onClick={() => setShowCreate(true)} style={primaryBtn}>+ New Job</button>
           )}
           </div>
@@ -117,7 +118,7 @@ export default function RolesPage({ onRoleSelect }) {
             <div style={{ padding: "60px 0", textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>
               <div style={{ fontSize: "24px", marginBottom: "8px", opacity: 0.4 }}>📋</div>
               <div style={{ fontWeight: 600, color: "var(--text-secondary)", marginBottom: "4px" }}>No jobs found</div>
-              {!vis && isAdmin &&(<button onClick={() => setShowCreate(true)} style={{ fontSize: "13px", color: "var(--accent)", background: "transparent", border: "none" }}>Create your first job →</button>)}
+              {!vis && canCreateJob &&(<button onClick={() => setShowCreate(true)} style={{ fontSize: "13px", color: "var(--accent)", background: "transparent", border: "none" }}>Create your first job →</button>)}
             </div>
           )}
 
@@ -138,7 +139,7 @@ export default function RolesPage({ onRoleSelect }) {
         </div>
       </div>
 
-      {isAdmin && showCreate && (
+      {canCreateJob && showCreate && (
         <CreateJobPanel
           onClose={() => setShowCreate(false)}
           onCreated={role => setRoles(prev => [role, ...prev])}

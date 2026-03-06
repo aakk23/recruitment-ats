@@ -87,6 +87,26 @@ MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024
 
 ALLOWED_VISIBILITY = {"published", "internal", "closed"}
 ALLOWED_JOB_TYPES  = {"full-time", "part-time", "contract", "freelance", "internship"}
+PERMISSION_ALIASES = {
+    "users.view": {"users.view", "user:view"},
+    "users.create": {"users.create", "user:create"},
+    "users.edit": {"users.edit", "user:edit"},
+    "users.delete": {"users.delete", "user:delete"},
+    "settings.view": {"settings.view", "settings:view"},
+    "settings.edit": {"settings.edit", "settings:edit"},
+    "job:view": {"job:view", "jobs.view"},
+    "job:create": {"job:create", "jobs.create"},
+    "job:edit": {"job:edit", "jobs.edit"},
+    "job:close": {"job:close", "jobs.close"},
+    "job:delete": {"job:delete", "jobs.delete"},
+    "candidate:view": {"candidate:view", "candidates.view"},
+    "candidate:add": {"candidate:add", "candidates.add"},
+    "candidate:edit": {"candidate:edit", "candidates.edit"},
+    "candidate:move": {"candidate:move", "candidates.move_stage"},
+    "candidate:delete": {"candidate:delete", "candidates.delete"},
+    "comments:add": {"comments:add", "comments.create"},
+    "comments:private:view": {"comments:private:view", "comments.view_private"},
+}
 
 
 def require_admin(user_id: int):
@@ -103,8 +123,21 @@ def require_permission(user_id: int, permission: str):
         raise HTTPException(status_code=401, detail="User not found")
     if user.get("is_admin"):
         return
-    permissions = user.get("permissions") or []
-    if permission not in permissions:
+    permissions = set(user.get("permissions") or [])
+    accepted = PERMISSION_ALIASES.get(permission, {permission})
+    if permissions.intersection(accepted):
+        return
+    if permission.endswith(":view"):
+        prefix = permission.split(":", 1)[0]
+        if f"{prefix}:*" in permissions:
+            return
+    if permission.endswith(".view"):
+        prefix = permission.split(".", 1)[0]
+        if f"{prefix}.*" in permissions:
+            return
+    if "*" in permissions:
+        return
+    if not permissions.intersection(accepted):
         raise HTTPException(status_code=403, detail=f"Missing permission: {permission}")
 
 
@@ -417,6 +450,7 @@ def get_users(
     status: Optional[str] = Query(default=None),
     user_id: int = Depends(get_current_user),
 ):
+    require_admin_or_permission(user_id, "users.view")
     if status and status not in {"active", "disabled"}:
         raise HTTPException(status_code=400, detail="Invalid status")
     return list_users(search=search, role_id=role_id, status=status)
@@ -479,6 +513,7 @@ def remove_user(target_user_id: int, user_id: int = Depends(get_current_user)):
 
 @app.get("/user-roles")
 def get_user_roles(user_id: int = Depends(get_current_user)):
+    require_admin_or_permission(user_id, "settings.view")
     return list_user_roles()
 
 
@@ -612,7 +647,7 @@ def post_client(
     payload: dict = Body(...),
     user_id: int  = Depends(get_current_user),
 ):
-    require_admin(user_id)
+    require_admin_or_permission(user_id, "settings.edit")
     name = (payload.get("name") or "").strip()
     if not name:
         raise HTTPException(status_code=400, detail="name is required")
@@ -628,7 +663,7 @@ def patch_client(
     payload:   dict = Body(...),
     user_id:   int  = Depends(get_current_user),
 ):
-    require_admin(user_id)
+    require_admin_or_permission(user_id, "settings.edit")
     name = (payload.get("name") or "").strip()
     if not name:
         raise HTTPException(status_code=400, detail="name is required")
@@ -668,7 +703,9 @@ def get_roles(
     visibility: Optional[str] = None,
     limit:      int           = Query(default=50, ge=1, le=200),
     cursor:     Optional[int] = Query(default=None),
+    user_id:    int           = Depends(get_current_user),
 ):
+    require_admin_or_permission(user_id, "job:view")
     if status and status not in {"open", "closed"}:
         raise HTTPException(status_code=400, detail="Invalid status. Allowed: open, closed")
     if visibility and visibility not in ALLOWED_VISIBILITY:
@@ -702,6 +739,7 @@ def post_role(body: CreateRoleRequest, user_id: int = Depends(get_current_user))
 
 @app.get("/roles/{role_id}")
 def get_role(role_id: int, user_id: int = Depends(get_current_user)):
+    require_admin_or_permission(user_id, "job:view")
     role = get_role_by_id(role_id)
     if not role:
         raise HTTPException(status_code=404, detail="Role not found")
@@ -730,7 +768,7 @@ def patch_role_visibility(
     body:    UpdateVisibilityRequest,
     user_id: int = Depends(get_current_user),
 ):
-    require_admin_or_permission(user_id, "job:edit")
+    require_admin_or_permission(user_id, "job:close")
     result = update_role_visibility(role_id, body.visibility)
     if not result:
         raise HTTPException(status_code=404, detail="Role not found")
@@ -740,7 +778,8 @@ def patch_role_visibility(
 # ── Stages ────────────────────────────────────────────────────────────────────
 
 @app.get("/roles/{role_id}/stages")
-def get_stages(role_id: int):
+def get_stages(role_id: int, user_id: int = Depends(get_current_user)):
+    require_admin_or_permission(user_id, "job:view")
     if not role_exists(role_id):
         raise HTTPException(status_code=404, detail="Role not found")
     return get_stages_for_role(role_id)
@@ -752,7 +791,7 @@ def post_stage(
     body:    CreateStageRequest,
     user_id: int = Depends(get_current_user),
 ):
-    require_admin(user_id)
+    require_admin_or_permission(user_id, "job:edit")
     if not role_exists(role_id):
         raise HTTPException(status_code=404, detail="Role not found")
     try:
@@ -767,7 +806,7 @@ def post_substage(
     body:     CreateSubstageRequest,
     user_id:  int = Depends(get_current_user),
 ):
-    require_admin(user_id)
+    require_admin_or_permission(user_id, "job:edit")
     try:
         return create_substage(stage_id, body.name, body.position)
     except ValueError as e:
@@ -776,7 +815,7 @@ def post_substage(
 
 @app.delete("/substages/{substage_id}", status_code=204)
 def remove_substage(substage_id: int, user_id: int = Depends(get_current_user)):
-    require_admin(user_id)
+    require_admin_or_permission(user_id, "job:edit")
     if not delete_substage(substage_id):
         raise HTTPException(status_code=404, detail="Substage not found")
 
@@ -822,6 +861,7 @@ def post_candidate(
 
 @app.get("/candidates/{candidate_id}")
 def get_candidate(candidate_id: int, user_id: int = Depends(get_current_user)):
+    require_admin_or_permission(user_id, "candidate:view")
     candidate = get_candidate_by_id(candidate_id)
     if not candidate:
         raise HTTPException(status_code=404, detail="Candidate not found")
@@ -836,6 +876,7 @@ def get_candidate(candidate_id: int, user_id: int = Depends(get_current_user)):
 
 @app.post("/applications")
 def post_application(body: CreateApplicationRequest, user_id: int = Depends(get_current_user)):
+    require_admin_or_permission(user_id, "candidate:add")
     if not role_exists(body.role_id):
         raise HTTPException(status_code=404, detail="Role not found")
     try:
@@ -863,6 +904,7 @@ def get_applications_for_role(
     cursor:  Optional[int] = Query(default=None),
     user_id: int           = Depends(get_current_user),
 ):
+    require_admin_or_permission(user_id, "candidate:view")
     if stage:
         allowed = get_allowed_stage_names(role_id)
         if stage not in allowed:
@@ -899,6 +941,7 @@ def patch_ownership(
     body:           UpdateOwnershipRequest,
     user_id:        int = Depends(get_current_user),
 ):
+    require_admin_or_permission(user_id, "candidate:edit")
     if not application_exists(application_id):
         raise HTTPException(status_code=404, detail="Application not found")
     result = update_ownership(
@@ -911,7 +954,7 @@ def patch_ownership(
 
 @app.delete("/applications/{application_id}", status_code=204)
 def remove_application(application_id: int, user_id: int = Depends(get_current_user)):
-    require_admin(user_id)
+    require_admin_or_permission(user_id, "candidate:delete")
     if not delete_application(application_id):
         raise HTTPException(status_code=404, detail="Application not found")
 
@@ -920,6 +963,7 @@ def remove_application(application_id: int, user_id: int = Depends(get_current_u
 
 @app.get("/applications/{application_id}/events")
 def get_application_events(application_id: int, user_id: int = Depends(get_current_user)):
+    require_admin_or_permission(user_id, "candidate:view")
     if not application_exists(application_id):
         raise HTTPException(status_code=404, detail="Application not found")
     return get_events(application_id)
@@ -947,4 +991,5 @@ def post_comment(
 
 @app.get("/applications/{application_id}/comments")
 def get_comments(application_id: int, user_id: int = Depends(get_current_user)):
+    require_admin_or_permission(user_id, "candidate:view")
     return list_comments(application_id, viewer_recruiter_id=user_id)

@@ -372,7 +372,11 @@ export default function SettingsPage({ user, onBack }) {
   const currentUser = authUser || user;
   const isAdmin = currentUser?.is_admin === true;
   const canManageRoles = isAdmin || hasPermission(currentUser, "settings.edit");
-  const canManageUsers = isAdmin;
+  const canManageUsers =
+    isAdmin ||
+    hasPermission(currentUser, "users.create") ||
+    hasPermission(currentUser, "users.edit") ||
+    hasPermission(currentUser, "users.delete");
   const { showToast } = useToast();
 
   const [users, setUsers] = useState([]);

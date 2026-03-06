@@ -3,16 +3,16 @@ import { useState } from "react";
 
 // ══ Kanban card ═══════════════════════════════════════════════════════════════
 
-export default function KanbanCard({ app, isSelected, isDragging, stageColor, onSelect, onDragStart, onDragEnd }) {
+export default function KanbanCard({ app, isSelected, isDragging, stageColor, onSelect, onDragStart, onDragEnd, canDrag = true }) {
   const [hov, setHov] = useState(false);
   const ini = (app.candidate_name || "?")
     .split(" ").slice(0, 2).map(w => w[0]?.toUpperCase() ?? "").join("");
 
   return (
     <div
-      draggable
-      onDragStart={e => onDragStart(e, app.application_id)}
-      onDragEnd={onDragEnd}
+      draggable={canDrag}
+      onDragStart={canDrag ? (e => onDragStart(e, app.application_id)) : undefined}
+      onDragEnd={canDrag ? onDragEnd : undefined}
       onClick={() => onSelect(app)}
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
@@ -21,7 +21,7 @@ export default function KanbanCard({ app, isSelected, isDragging, stageColor, on
         border: isSelected ? "1px solid var(--accent)" : `1px solid ${hov ? "var(--border-default)" : "var(--border-subtle)"}`,
         borderRadius: "var(--radius-md)",
         padding: "10px 12px", marginBottom: 6,
-        cursor: isDragging ? "grabbing" : "grab",
+        cursor: canDrag ? (isDragging ? "grabbing" : "grab") : "pointer",
         opacity: isDragging ? 0.3 : 1,
         transform: isDragging ? "rotate(1.5deg) scale(0.96)" : hov && !isDragging ? "translateY(-1px)" : "none",
         boxShadow: hov && !isDragging ? "0 2px 8px rgba(0,0,0,0.4)" : "none",
