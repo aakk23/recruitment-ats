@@ -32,7 +32,9 @@ class Settings:
     access_token_expire_minutes: int = int(
         os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES", "60")
     )
-
+    refresh_threshold_minutes: int = int(
+        os.environ.get("REFRESH_THRESHOLD_MINUTES", "15")
+    )
     # ── Database ──────────────────────────────────────────────────────────────
     db_name: str = os.environ.get("DB_NAME", "ATS_DB")
     db_user: str = os.environ.get("DB_USER", "postgres")
@@ -46,4 +48,4 @@ class Settings:
     ).split(",")
 
 
-settings = Settings()
+settings = Settings()   

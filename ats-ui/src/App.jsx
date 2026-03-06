@@ -7,7 +7,7 @@ import LoginPage      from "./pages/LoginPage";
 import Navbar         from "./components/Navbar";
 import { ToastProvider }  from "./toast/ToastContext";
 import ToastContainer     from "./toast/ToastContainer";
-import { fetchRole, fetchMe, logout} from "./api";
+import { fetchRole, fetchMe, logout, scheduleRefresh, cancelRefresh } from "./api";
 
 export default function App() {
   const [authenticated, setAuthenticated] =useState(null);;
@@ -21,7 +21,11 @@ export default function App() {
     // if (!authenticated) { setUser(null); return; }
     fetchMe()
       .then(me => { 
-        if (me) {setUser(me); setAuthenticated(true); }
+        if (me) {
+          setUser(me); 
+          setAuthenticated(true);
+          scheduleRefresh(); 
+        }
         else setAuthenticated(false);
       })
       .catch(() => setAuthenticated(false));
@@ -38,6 +42,7 @@ export default function App() {
   }, []);
 
   const handleLogout = async () => {
+    cancelRefresh();        // stop any pending refresh attempts
     await logout();            // clears the cookie server-side
     setUser(null);
     setSelectedRole(null);
@@ -59,7 +64,11 @@ export default function App() {
     return (
       <ToastProvider>
         <ToastContainer />
-        <LoginPage onLogin={() => setAuthenticated(true)} />
+        <LoginPage onLogin={() =>{
+           fetchMe().then(me => { if (me) setUser(me); });
+            setAuthenticated(true);
+            scheduleRefresh();  
+           }} />
       </ToastProvider>
     );
   }

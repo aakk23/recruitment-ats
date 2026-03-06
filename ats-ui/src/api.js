@@ -37,24 +37,107 @@ export function resolveFileUrl(url) {
 //   return res.json();
 // }
 
-async function apiFetch(path, options = {}) {
+
+// ── Silent refresh ────────────────────────────────────────────────────────────
+
+const TOKEN_TTL_MS       = 60 * 60 * 1000;   // 60 min — must match backend
+const PROACTIVE_OFFSET   = 15 * 60 * 1000;   // fire 15 min before expiry
+let   _refreshTimer      = null;
+let   _isRefreshing      = false;
+let   _refreshPromise    = null;
+
+export function scheduleRefresh() {
+  clearTimeout(_refreshTimer);
+  _refreshTimer = setTimeout(async () => {
+    try {
+      await doRefresh();
+      scheduleRefresh();   // reschedule after successful rotation
+    } catch {
+      // refresh failed — let the next real request trigger auth:expired
+    }
+  }, TOKEN_TTL_MS - PROACTIVE_OFFSET);  // fires at 45 min mark
+}
+
+async function doRefresh() {
+  if (_isRefreshing) return _refreshPromise;
+  _isRefreshing = true;
+  _refreshPromise = fetch(`${BASE_URL}/auth/refresh`, {
+    method: "POST",
+    credentials: "include",
+  }).finally(() => {
+    _isRefreshing = false;
+    _refreshPromise = null;
+  });
+  const res = await _refreshPromise;
+  if (!res.ok) throw new Error("Refresh failed");
+}
+
+// ── Core fetch ────────────────────────────────────────────────────────────────
+
+async function apiFetch(path, options = {}, isRetry = false) {
   const res = await fetch(`${BASE_URL}${path}`, {
     ...options,
-    credentials: "include",          // ← sends the httpOnly cookie automatically
+    credentials: "include",
     headers: { ...(options.headers || {}) },
   });
+
   if (res.status === 401) {
+    if (!isRetry) {
+      // One silent refresh attempt before giving up
+      try {
+        await doRefresh();
+        return apiFetch(path, options, true);   // replay original request
+      } catch {
+        // refresh also failed — session is truly expired
+      }
+    }
     window.dispatchEvent(new CustomEvent("auth:expired"));
     return null;
-      // cookie expired/missing → back to login
   }
+
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.detail || `Request failed: ${path}`);
   }
   if (res.status === 204) return null;
   return res.json();
-}
+}    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// async function apiFetch(path, options = {}) {
+//   const res = await fetch(`${BASE_URL}${path}`, {
+//     ...options,
+//     credentials: "include",          // ← sends the httpOnly cookie automatically
+//     headers: { ...(options.headers || {}) },
+//   });
+//   if (res.status === 401) {
+//     window.dispatchEvent(new CustomEvent("auth:expired"));
+//     return null;
+//       // cookie expired/missing → back to login
+//   }
+//   if (!res.ok) {
+//     const err = await res.json().catch(() => ({}));
+//     throw new Error(err.detail || `Request failed: ${path}`);
+//   }
+//   if (res.status === 204) return null;
+//   return res.json();
+// }
 
 
 
@@ -79,6 +162,11 @@ export async function login(email, password) {
 export const logout  = () => apiFetch("/auth/logout",  { method: "POST" });
 export const refresh = () => apiFetch("/auth/refresh", { method: "POST" });
 export const fetchMe = () => apiFetch("/auth/me");
+
+export function cancelRefresh() {
+  clearTimeout(_refreshTimer);
+}
+
 
 // ── Lookup data ───────────────────────────────────────────────────────────────
 
@@ -229,3 +317,6 @@ export const addComment = (applicationId, comment, isPrivate = false, taggedIds 
 
 export const fetchEvents = (applicationId) =>
   apiFetch(`/applications/${applicationId}/events`);
+
+
+
