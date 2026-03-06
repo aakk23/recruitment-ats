@@ -152,10 +152,13 @@ export const deleteSubstage = (substageId) =>
 export async function createCandidate(formData) {
   const res = await fetch(`${BASE_URL}/candidates`, {
     method: "POST",
-    headers: { ...getAuthHeaders() },
+    credentials: "include",
     body: formData,
   });
-  if (res.status === 401) { handleAuthError(res); return null; }
+  if (res.status === 401) { 
+    window.dispatchEvent(new CustomEvent("auth:expired"));
+    return null; 
+  }
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.detail || "Failed to create candidate");

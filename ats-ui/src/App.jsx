@@ -7,7 +7,7 @@ import LoginPage      from "./pages/LoginPage";
 import Navbar         from "./components/Navbar";
 import { ToastProvider }  from "./toast/ToastContext";
 import ToastContainer     from "./toast/ToastContainer";
-import { fetchRole, fetchMe } from "./api";
+import { fetchRole, fetchMe, logout} from "./api";
 
 export default function App() {
   const [authenticated, setAuthenticated] =useState(null);;
