@@ -8,6 +8,9 @@ import Navbar         from "./components/Navbar";
 import { ToastProvider }  from "./toast/ToastContext";
 import ToastContainer     from "./toast/ToastContainer";
 import { fetchRole, fetchMe, logout, scheduleRefresh, cancelRefresh } from "./api";
+import { AuthContext } from "./useAuth";
+
+
 
 export default function App() {
   const [authenticated, setAuthenticated] =useState(null);;
@@ -74,27 +77,29 @@ export default function App() {
   }
 
   return (
-    <ToastProvider>
-      <ToastContainer />
-      <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
-        <Navbar
-          user={user}
-          onLogout={handleLogout}
-          onSettings={() => { setSelectedRole(null); setPage("settings"); }}
-        />
-
-        {page === "settings" && (
-          <SettingsPage user={user} onBack={() => setPage("roles")} />
-        )}
-
-        {page === "roles" && selectedRole && (
-          <RoleDetailPage role={selectedRole} onBack={() => setSelectedRole(null)} />
-        )}
-
-        {page === "roles" && !selectedRole && (
-          <RolesPage onRoleSelect={handleRoleSelect} />
-        )}
-      </div>
-    </ToastProvider>
+    <AuthContext.Provider value={user}>
+      <ToastProvider>
+        <ToastContainer />
+        <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
+          <Navbar
+            user={user}
+            onLogout={handleLogout}
+            onSettings={() => { setSelectedRole(null); setPage("settings"); }}
+          />
+  
+          {page === "settings" && (
+            <SettingsPage user={user} onBack={() => setPage("roles")} />
+          )}
+  
+          {page === "roles" && selectedRole && (
+            <RoleDetailPage role={selectedRole} onBack={() => setSelectedRole(null)} />
+          )}
+  
+          {page === "roles" && !selectedRole && (
+            <RolesPage onRoleSelect={handleRoleSelect} />
+          )}
+        </div>
+      </ToastProvider>
+    </AuthContext.Provider>
   );
 }

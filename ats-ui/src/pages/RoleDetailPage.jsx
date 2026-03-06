@@ -6,6 +6,7 @@ import CandidatePanel    from "../components/CandidatePanel";
 import AddCandidatePanel from "../components/AddCandidatePanel";
 import JobPanel          from "../components/JobPanel";
 import { useToast }      from "../toast/ToastContext";
+import { useAuth } from "../useAuth";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -32,6 +33,8 @@ const DRAG_NONE = Symbol("DRAG_NONE");
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function RoleDetailPage({ role: roleProp, onBack }) {
+  const user = useAuth();
+  const isAdmin = user?.is_admin === true;
   const [role,             setRole]             = useState(roleProp);
   const [apps,             setApps]             = useState([]);
   const [stages,           setStages]           = useState([]);

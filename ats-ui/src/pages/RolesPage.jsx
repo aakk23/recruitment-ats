@@ -2,6 +2,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { fetchRoles } from "../api";
 import CreateJobPanel from "../components/CreateJobPanel";
+import { useAuth } from "../useAuth";
+
 
 const VIS_TABS = [
   { key: "",          label: "All"       },
@@ -17,6 +19,8 @@ function initials(title = "") {
 }
 
 export default function RolesPage({ onRoleSelect }) {
+  const { user } = useAuth();
+  const isAdmin = user?.is_admin===true;
   const [vis,         setVis]         = useState("");
   const [roles,       setRoles]       = useState([]);
   const [nextCursor,  setNextCursor]  = useState(null);
@@ -50,8 +54,11 @@ export default function RolesPage({ onRoleSelect }) {
               {roles.length > 0 ? `${roles.length}${nextCursor ? "+" : ""} positions` : "Manage your open positions"}
             </p>
           </div>
+          {/* Only admins see the create button */}
+          {isAdmin && (
           <button onClick={() => setShowCreate(true)} style={primaryBtn}>+ New Job</button>
-        </div>
+          )}
+          </div>
 
         {/* Tabs */}
         <div style={{ display: "flex", borderBottom: "1px solid var(--border-subtle)", marginBottom: "0" }}>
@@ -110,7 +117,7 @@ export default function RolesPage({ onRoleSelect }) {
             <div style={{ padding: "60px 0", textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>
               <div style={{ fontSize: "24px", marginBottom: "8px", opacity: 0.4 }}>📋</div>
               <div style={{ fontWeight: 600, color: "var(--text-secondary)", marginBottom: "4px" }}>No jobs found</div>
-              {!vis && <button onClick={() => setShowCreate(true)} style={{ fontSize: "13px", color: "var(--accent)", background: "transparent", border: "none" }}>Create your first job →</button>}
+              {!vis && isAdmin &&(<button onClick={() => setShowCreate(true)} style={{ fontSize: "13px", color: "var(--accent)", background: "transparent", border: "none" }}>Create your first job →</button>)}
             </div>
           )}
 
@@ -131,7 +138,7 @@ export default function RolesPage({ onRoleSelect }) {
         </div>
       </div>
 
-      {showCreate && (
+      {isAdmin && showCreate && (
         <CreateJobPanel
           onClose={() => setShowCreate(false)}
           onCreated={role => setRoles(prev => [role, ...prev])}

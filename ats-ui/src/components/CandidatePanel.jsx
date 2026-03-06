@@ -15,7 +15,7 @@ import OverviewTab  from "./candidate/OverviewTab";
 import TimelineTab  from "./candidate/TimelineTab";
 import CommentsTab  from "./candidate/CommentsTab";
 
-export default function CandidatePanel({ application, roleId, onClose, onStageChange }) {
+export default function CandidatePanel({ application, roleId, onClose, onStageChange, isAdmin }) {
 
   // ── Remote data ─────────────────────────────────────────────────────────────
   const [events,     setEvents]     = useState([]);

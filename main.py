@@ -461,6 +461,7 @@ def get_roles(
 
 @app.post("/roles", status_code=201)
 def post_role(body: CreateRoleRequest, user_id: int = Depends(get_current_user)):
+    require_admin(user_id)
     try:
         return create_role(
             title=body.title,
@@ -496,6 +497,7 @@ def patch_role(
     body:    UpdateRoleRequest,
     user_id: int = Depends(get_current_user),
 ):
+    require_admin(user_id)
     if not role_exists(role_id):
         raise HTTPException(status_code=404, detail="Role not found")
     fields = {k: v for k, v in body.model_dump().items() if v is not None}
@@ -511,6 +513,7 @@ def patch_role_visibility(
     body:    UpdateVisibilityRequest,
     user_id: int = Depends(get_current_user),
 ):
+    require_admin(user_id)
     result = update_role_visibility(role_id, body.visibility)
     if not result:
         raise HTTPException(status_code=404, detail="Role not found")
@@ -532,6 +535,7 @@ def post_stage(
     body:    CreateStageRequest,
     user_id: int = Depends(get_current_user),
 ):
+    require_admin(user_id)
     if not role_exists(role_id):
         raise HTTPException(status_code=404, detail="Role not found")
     try:
@@ -546,6 +550,7 @@ def post_substage(
     body:     CreateSubstageRequest,
     user_id:  int = Depends(get_current_user),
 ):
+    require_admin(user_id)
     try:
         return create_substage(stage_id, body.name, body.position)
     except ValueError as e:
@@ -554,6 +559,7 @@ def post_substage(
 
 @app.delete("/substages/{substage_id}", status_code=204)
 def remove_substage(substage_id: int, user_id: int = Depends(get_current_user)):
+    require_admin(user_id)
     if not delete_substage(substage_id):
         raise HTTPException(status_code=404, detail="Substage not found")
 
@@ -686,6 +692,7 @@ def patch_ownership(
 
 @app.delete("/applications/{application_id}", status_code=204)
 def remove_application(application_id: int, user_id: int = Depends(get_current_user)):
+    require_admin(user_id)
     if not delete_application(application_id):
         raise HTTPException(status_code=404, detail="Application not found")
 
