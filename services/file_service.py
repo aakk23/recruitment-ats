@@ -25,7 +25,7 @@ import abc
 
 class StorageBackend(abc.ABC):
     @abc.abstractmethod
-    def save(self, file_bytes: bytes, candidate_id: int, filename: str) -> str:
+    def save(self, file_bytes: bytes, candidate_id: int, filename: str, content_type: str = "application/octet-stream") -> str:
         """
         Persist file_bytes and return a storage path / URL string
         that gets saved to candidates.resume_path in the DB.
@@ -53,7 +53,7 @@ class LocalStorageBackend(StorageBackend):
     def __init__(self, base_dir: str = "uploads"):
         self.base_dir = base_dir
 
-    def save(self, file_bytes: bytes, candidate_id: int, filename: str) -> str:
+    def save(self, file_bytes: bytes, candidate_id: int, filename: str, content_type: str = "application/octet-stream") -> str:
         candidate_dir = os.path.join(self.base_dir, str(candidate_id))
         os.makedirs(candidate_dir, exist_ok=True)
         file_path = os.path.join(candidate_dir, filename)
@@ -62,8 +62,9 @@ class LocalStorageBackend(StorageBackend):
         return file_path  # stored as-is in DB
 
     def get_download_url(self, stored_path: str) -> str:
-        # Served statically by FastAPI's StaticFiles mount (or nginx in prod)
-        return f"/static/{stored_path}"
+        # Served by authenticated API endpoint in main.py
+        cleaned = stored_path.lstrip("/")
+        return f"/files/{cleaned}"
 
 
 # ── S3 backend (swap-in for production) ───────────────────────────────────────
@@ -91,13 +92,13 @@ class S3Backend(StorageBackend):
         )
         self.bucket = os.environ["S3_BUCKET_NAME"]
 
-    def save(self, file_bytes: bytes, candidate_id: int, filename: str) -> str:
+    def save(self, file_bytes: bytes, candidate_id: int, filename: str, content_type: str = "application/octet-stream") -> str:
         key = f"resumes/{candidate_id}/{filename}"
         self.s3.put_object(
             Bucket=self.bucket,
             Key=key,
             Body=file_bytes,
-            ContentType="application/pdf",
+            ContentType=content_type,
         )
         return key  # stored in DB — use get_download_url() to make it accessible
 
@@ -123,7 +124,17 @@ class FileService:
 
     def save_resume(self, file_bytes: bytes, candidate_id: int) -> str:
         """Save resume bytes and return the stored path saved to the DB."""
-        return self._backend.save(file_bytes, candidate_id, "resume.pdf")
+        return self._backend.save(file_bytes, candidate_id, "resume.pdf", content_type="application/pdf")
+
+    def save_candidate_file(
+        self,
+        file_bytes: bytes,
+        candidate_id: int,
+        filename: str,
+        content_type: str = "application/octet-stream",
+    ) -> str:
+        """Save candidate attachment with original filename/format."""
+        return self._backend.save(file_bytes, candidate_id, filename, content_type=content_type)
 
     def get_resume_url(self, stored_path: str) -> str:
         """Return a download URL for the given stored path."""

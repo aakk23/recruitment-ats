@@ -8,6 +8,10 @@ const BASE_URL = "/api"; // Proxy to backend in development; set to actual API U
 export function resolveFileUrl(url) {
   if (!url) return null;
   if (/^https?:\/\//i.test(url)) return url;
+  if (url.startsWith("/static/")) {
+    const withoutStatic = url.replace(/^\/static\//, "");
+    return `${BASE_URL}/files/${withoutStatic}`;
+  }
   return `${BASE_URL}${url.startsWith("/") ? "" : "/"}${url}`;
 }
 
@@ -309,6 +313,84 @@ export async function createCandidate(formData) {
   return res.json();
 }
 
+export async function parseResume({ resumeFile, jobId = null }) {
+  const formData = new FormData();
+  formData.append("resume", resumeFile);
+  if (jobId) formData.append("job_id", String(jobId));
+
+  const res = await fetch(`${BASE_URL}/parse-resume`, {
+    method: "POST",
+    credentials: "include",
+    body: formData,
+  });
+  if (res.status === 401) {
+    window.dispatchEvent(new CustomEvent("auth:expired"));
+    return null;
+  }
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to parse resume");
+  }
+  return res.json();
+}
+
+export async function bulkParseResumes({ resumeFiles, jobId = null }) {
+  const formData = new FormData();
+  for (const file of resumeFiles || []) {
+    formData.append("resumes", file);
+  }
+  if (jobId) formData.append("job_id", String(jobId));
+
+  const res = await fetch(`${BASE_URL}/bulk-parse-resumes`, {
+    method: "POST",
+    credentials: "include",
+    body: formData,
+  });
+  if (res.status === 401) {
+    window.dispatchEvent(new CustomEvent("auth:expired"));
+    return null;
+  }
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to bulk parse resumes");
+  }
+  return res.json();
+}
+
+export async function createCandidateFromResume({
+  fullName,
+  email,
+  phone,
+  linkedinUrl,
+  skills = [],
+  source = "resume_upload",
+  resumeFile,
+}) {
+  const formData = new FormData();
+  formData.append("full_name", fullName);
+  if (email) formData.append("email", email);
+  if (phone) formData.append("phone", phone);
+  if (linkedinUrl) formData.append("linkedin_url", linkedinUrl);
+  formData.append("source", source);
+  formData.append("skills", JSON.stringify(skills || []));
+  formData.append("resume", resumeFile);
+
+  const res = await fetch(`${BASE_URL}/candidates/from-resume`, {
+    method: "POST",
+    credentials: "include",
+    body: formData,
+  });
+  if (res.status === 401) {
+    window.dispatchEvent(new CustomEvent("auth:expired"));
+    return null;
+  }
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to create candidate from resume");
+  }
+  return res.json();
+}
+
 export async function fetchCandidate(candidateId) {
   if (!candidateId) return null;
   try {
@@ -372,4 +454,3 @@ export const addComment = (applicationId, comment, isPrivate = false, taggedIds 
 
 export const fetchEvents = (applicationId) =>
   apiFetch(`/applications/${applicationId}/events`);
-

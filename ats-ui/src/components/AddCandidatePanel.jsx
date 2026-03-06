@@ -1,6 +1,6 @@
 // src/components/AddCandidatePanel.jsx
 import { useState } from "react";
-import { createCandidate, createApplication } from "../api";
+import { createCandidate, createApplication, parseResume } from "../api";
 
 function AddCandidatePanel({ role, onClose, onCandidateAdded, onViewApplication }) {
   const [name,          setName]          = useState("");
@@ -10,8 +10,48 @@ function AddCandidatePanel({ role, onClose, onCandidateAdded, onViewApplication 
   const [linkedinUrl,   setLinkedinUrl]   = useState("");
   const [saving,        setSaving]        = useState(false);
   const [duplicateInfo, setDuplicateInfo] = useState(null);
+  const [parsingResume, setParsingResume] = useState(false);
+  const [parseNotice,   setParseNotice]   = useState(null);
 
   const hasChanges = name || email || phone || resume || linkedinUrl;
+
+  const handleResumeSelect = async (file) => {
+    setResume(file || null);
+    setDuplicateInfo(null);
+    setParseNotice(null);
+    if (!file) return;
+
+    setParsingResume(true);
+    try {
+      const parsed = await parseResume({ resumeFile: file, jobId: role.id });
+      if (!parsed) return;
+
+      if (parsed.name && !name.trim()) setName(parsed.name);
+      if (parsed.email && !email.trim()) setEmail(parsed.email);
+      if (parsed.phone && !phone.trim()) setPhone(parsed.phone);
+
+      if (parsed.name || parsed.email || parsed.phone) {
+        setParseNotice({ type: "success", text: "Autofilled candidate details from resume." });
+      } else {
+        setParseNotice({ type: "muted", text: "Resume parsed, but no fields were detected for autofill." });
+      }
+    } catch (e) {
+      const msg = String(e?.message || "");
+      const dependencyMissing =
+        msg.includes("pdfminer.six is required") ||
+        msg.includes("python-docx is required");
+      setParseNotice({
+        type: "warning",
+        text: dependencyMissing
+          ? "Resume uploaded. Autofill is unavailable on this server. Install parser deps: pip install pdfminer.six python-docx"
+          : (e?.message
+            ? `Resume uploaded. Could not autofill: ${e.message}`
+            : "Resume uploaded. Could not autofill details."),
+      });
+    } finally {
+      setParsingResume(false);
+    }
+  };
 
   const closeAfterOpen = (applicationId) => {
     onCandidateAdded(applicationId);
@@ -142,8 +182,25 @@ function AddCandidatePanel({ role, onClose, onCandidateAdded, onViewApplication 
               </div>
             )}
             <input id="resumeInput" type="file" accept=".pdf" hidden
-              onChange={(e) => setResume(e.target.files[0])} />
+              onChange={(e) => handleResumeSelect(e.target.files?.[0] || null)} />
           </div>
+          {parsingResume && (
+            <div style={{ marginTop: "8px", fontSize: "11px", color: "var(--text-muted)" }}>
+              Parsing resume and autofilling details...
+            </div>
+          )}
+          {!parsingResume && parseNotice && (
+            <div style={{
+              marginTop: "8px",
+              fontSize: "11px",
+              color:
+                parseNotice.type === "success" ? "var(--success)" :
+                parseNotice.type === "warning" ? "var(--warning)" :
+                "var(--text-muted)",
+            }}>
+              {parseNotice.text}
+            </div>
+          )}
         </Field>
       </div>
 

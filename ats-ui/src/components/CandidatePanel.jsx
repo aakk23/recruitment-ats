@@ -29,6 +29,7 @@ export default function CandidatePanel({ application, roleId, onClose, onStageCh
   // ── UI state ─────────────────────────────────────────────────────────────────
   const [tab,        setTab]        = useState("overview");
   const [showResume, setShowResume] = useState(false);
+  const [hasOpenedResume, setHasOpenedResume] = useState(false);
 
   // ── Stage mirrors ────────────────────────────────────────────────────────────
   const [localStage,    setLocalStage]    = useState(null);
@@ -63,6 +64,7 @@ export default function CandidatePanel({ application, roleId, onClose, onStageCh
     // Reset all local state
     setTab("overview");
     setShowResume(false);
+    setHasOpenedResume(false);
     setEvents([]); setComments([]); setStages([]); setCandidate(null);
     setNewComment(""); setIsPrivate(false); setSaveError(null); setMention(null);
     setOwnerEdit(false); setNewCandOwner(""); setNewAssigned(""); setOwnerError(null);
@@ -92,6 +94,10 @@ export default function CandidatePanel({ application, roleId, onClose, onStageCh
       .finally(() => setLoading(false));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appId]);
+
+  useEffect(() => {
+    if (showResume && candidate?.resume_url) setHasOpenedResume(true);
+  }, [showResume, candidate?.resume_url]);
 
   // ── Derived values (computed before early-return so hooks stay stable) ────────
   const currentStageObj = stages.find((s) => s.name === localStage);
@@ -202,25 +208,43 @@ export default function CandidatePanel({ application, roleId, onClose, onStageCh
       transition: "width 0.25s ease",
     }}>
 
-      {/* Resume preview pane — only shown when showResume + URL exists */}
-      {showResume && candidate?.resume_url && (() => {
-        const resumeHref = resolveFileUrl(candidate.resume_url);
-        return (
-          <div style={{ flex: 1, borderRight: "1px solid var(--border-subtle)", display: "flex", flexDirection: "column", minWidth: 0 }}>
+      {/* Resume preview pane — keep mounted for smooth open/close animation */}
+      <div
+        style={{
+          width: showResume && candidate?.resume_url ? "440px" : "0px",
+          opacity: showResume && candidate?.resume_url ? 1 : 0,
+          borderRight: showResume && candidate?.resume_url ? "1px solid var(--border-subtle)" : "none",
+          display: "flex",
+          flexDirection: "column",
+          minWidth: 0,
+          overflow: "hidden",
+          pointerEvents: showResume && candidate?.resume_url ? "auto" : "none",
+          transition: "width 0.28s ease, opacity 0.22s ease",
+          willChange: "width, opacity",
+        }}
+      >
+        {candidate?.resume_url && (
+          <>
             <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-subtle)", display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
               <span style={{ fontSize: "13px", fontWeight: 600 }}>Resume Preview</span>
               <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                <a href={resumeHref} target="_blank" rel="noreferrer" download style={{ fontSize: "12px", color: "var(--accent)", padding: "3px 10px", border: "1px solid var(--accent)", borderRadius: "var(--radius-sm)", textDecoration: "none" }}>↓ Download</a>
+                <a href={resolveFileUrl(candidate.resume_url)} target="_blank" rel="noreferrer" download style={{ fontSize: "12px", color: "var(--accent)", padding: "3px 10px", border: "1px solid var(--accent)", borderRadius: "var(--radius-sm)", textDecoration: "none" }}>↓ Download</a>
                 <button onClick={() => setShowResume(false)} style={{ background: "transparent", border: "none", color: "var(--text-muted)", fontSize: "18px" }}
                   onMouseEnter={e => e.currentTarget.style.color = "var(--text-primary)"}
                   onMouseLeave={e => e.currentTarget.style.color = "var(--text-muted)"}
                 >×</button>
               </div>
             </div>
-            <iframe src={resumeHref} style={{ flex: 1, border: "none", background: "#fff" }} title="Resume Preview" />
-          </div>
-        );
-      })()}
+            {hasOpenedResume && (
+              <iframe
+                src={resolveFileUrl(candidate.resume_url)}
+                style={{ flex: 1, border: "none", background: "#fff" }}
+                title="Resume Preview"
+              />
+            )}
+          </>
+        )}
+      </div>
 
       {/* Main 420px panel column */}
       <div style={{ width: "420px", flexShrink: 0, display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>

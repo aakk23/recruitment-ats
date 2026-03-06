@@ -1,11 +1,14 @@
 # main.py
 import os
+import json
 from typing import Optional, List
 
 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Depends, Query, Body, Response
+from fastapi.concurrency import run_in_threadpool
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field, field_validator
 
 from config import settings
@@ -17,6 +20,7 @@ from repositories.candidate_repository import (
     create_candidate,
     update_resume_path,
     get_candidate_by_id,
+    update_candidate_resume_metadata,
 )
 from repositories.application_repository import (
     find_application,
@@ -67,6 +71,7 @@ from repositories.user_management_repository import (
     update_user_role,
     delete_user_role,
 )
+from services.resume_parser import parse_resume_file, parse_resume_batch_files, ResumeParserError
 
 # ── App ───────────────────────────────────────────────────────────────────────
 
@@ -84,6 +89,7 @@ file_service = get_file_service()
 
 ALLOWED_MIME_TYPES = {"application/pdf"}
 MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024
+ALLOWED_RESUME_EXTENSIONS = {".pdf", ".docx"}
 
 ALLOWED_VISIBILITY = {"published", "internal", "closed"}
 ALLOWED_JOB_TYPES  = {"full-time", "part-time", "contract", "freelance", "internship"}
@@ -165,6 +171,38 @@ def validate_resume(resume: UploadFile) -> bytes:
     if not file_bytes:
         raise HTTPException(status_code=400, detail="Uploaded file is empty.")
     return file_bytes
+
+
+def detect_resume_filetype(filename: Optional[str]) -> str:
+    if not filename:
+        raise HTTPException(status_code=400, detail="Resume filename is required")
+    ext = os.path.splitext(filename.lower())[1]
+    if ext not in ALLOWED_RESUME_EXTENSIONS:
+        raise HTTPException(status_code=400, detail="Unsupported format. Only PDF and DOCX are allowed.")
+    return ext
+
+
+def validate_resume_for_parsing(resume: UploadFile) -> tuple[bytes, str]:
+    ext = detect_resume_filetype(resume.filename)
+    file_bytes = resume.file.read()
+    if not file_bytes:
+        raise HTTPException(status_code=400, detail="Uploaded resume is empty")
+    if len(file_bytes) > MAX_FILE_SIZE_BYTES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Resume exceeds 10 MB ({len(file_bytes)//(1024*1024)} MB uploaded).",
+        )
+    return file_bytes, ext
+
+
+async def parse_single_resume_upload(resume: UploadFile) -> dict:
+    file_bytes, _ = validate_resume_for_parsing(resume)
+    try:
+        return await run_in_threadpool(parse_resume_file, file_bytes, resume.filename or "")
+    except ResumeParserError:
+        raise
+    except Exception:
+        raise ResumeParserError("Failed to parse resume")
 
 
 # ── Pydantic models ───────────────────────────────────────────────────────────
@@ -439,6 +477,20 @@ def get_me(user_id: int = Depends(get_current_user)):
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
     return user
+
+
+@app.get("/files/{stored_path:path}")
+def get_resume_file(stored_path: str, user_id: int = Depends(get_current_user)):
+    require_admin_or_permission(user_id, "candidate:view")
+
+    base_dir = os.path.abspath(os.environ.get("LOCAL_UPLOAD_DIR", "uploads"))
+    candidate_path = os.path.abspath(stored_path)
+    if not os.path.commonpath([candidate_path, base_dir]) == base_dir:
+        raise HTTPException(status_code=400, detail="Invalid file path")
+    if not os.path.isfile(candidate_path):
+        raise HTTPException(status_code=404, detail="File not found")
+
+    return FileResponse(candidate_path)
 
 
 # ── Users & Custom Roles ─────────────────────────────────────────────────────
@@ -821,6 +873,128 @@ def remove_substage(substage_id: int, user_id: int = Depends(get_current_user)):
 
 
 # ── Candidates ────────────────────────────────────────────────────────────────
+
+@app.post("/parse-resume")
+async def parse_resume_endpoint(
+    resume: UploadFile = File(...),
+    job_id: Optional[int] = Form(default=None),
+    user_id: int = Depends(get_current_user),
+):
+    require_admin_or_permission(user_id, "candidate:add")
+    try:
+        parsed = await parse_single_resume_upload(resume)
+    except ResumeParserError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=400, detail="Failed to parse resume")
+
+    return {
+        **parsed,
+        "job_id": job_id,
+        "filename": resume.filename,
+    }
+
+
+@app.post("/bulk-parse-resumes")
+async def bulk_parse_resumes_endpoint(
+    resumes: List[UploadFile] = File(...),
+    job_id: Optional[int] = Form(default=None),
+    user_id: int = Depends(get_current_user),
+):
+    require_admin_or_permission(user_id, "candidate:add")
+    if not resumes:
+        raise HTTPException(status_code=400, detail="At least one resume is required")
+
+    valid_payloads = []
+    valid_files = []
+    errors = []
+
+    for resume in resumes:
+        try:
+            file_bytes, _ = validate_resume_for_parsing(resume)
+            valid_payloads.append({"bytes": file_bytes, "filename": resume.filename or ""})
+            valid_files.append(resume)
+        except HTTPException as e:
+            errors.append({"filename": resume.filename, "error": e.detail})
+
+    parsed_items = []
+    if valid_payloads:
+        try:
+            parsed_results = await run_in_threadpool(parse_resume_batch_files, valid_payloads)
+            for resume, parsed in zip(valid_files, parsed_results):
+                parsed_items.append({
+                    "filename": resume.filename,
+                    "job_id": job_id,
+                    "data": parsed,
+                })
+        except ResumeParserError as e:
+            errors.extend({"filename": r.filename, "error": str(e)} for r in valid_files)
+        except Exception:
+            errors.extend({"filename": r.filename, "error": "Failed to parse resume"} for r in valid_files)
+
+    return {
+        "items": parsed_items,
+        "errors": errors,
+        "parsed_count": len(parsed_items),
+        "error_count": len(errors),
+    }
+
+
+@app.post("/candidates/from-resume")
+def post_candidate_from_resume(
+    full_name: str = Form(..., min_length=1, max_length=200),
+    email: Optional[str] = Form(default=None),
+    phone: Optional[str] = Form(default=None),
+    linkedin_url: Optional[str] = Form(default=None),
+    source: str = Form(default="resume_upload"),
+    skills: Optional[str] = Form(default=None),
+    resume: UploadFile = File(...),
+    user_id: int = Depends(get_current_user),
+):
+    require_admin_or_permission(user_id, "candidate:add")
+    file_bytes, _ = validate_resume_for_parsing(resume)
+
+    parsed_skills = []
+    if skills:
+        try:
+            loaded = json.loads(skills)
+            if isinstance(loaded, list):
+                parsed_skills = [str(item) for item in loaded]
+        except json.JSONDecodeError:
+            raise HTTPException(status_code=400, detail="skills must be a JSON list")
+
+    if email:
+        existing = find_candidate_by_email(email)
+        if existing:
+            raise HTTPException(status_code=409, detail="Candidate with this email already exists")
+
+    candidate_id = create_candidate(
+        full_name=full_name.strip(),
+        email=(email or "").strip().lower() or None,
+        phone=(phone or "").strip() or None,
+        linkedin_url=(linkedin_url or "").strip() or None,
+    )
+
+    safe_ext = os.path.splitext((resume.filename or "resume.pdf").lower())[1] or ".pdf"
+    stored_path = file_service.save_candidate_file(
+        file_bytes=file_bytes,
+        candidate_id=candidate_id,
+        filename=f"resume{safe_ext}",
+        content_type=resume.content_type or "application/octet-stream",
+    )
+
+    update_resume_path(candidate_id, stored_path)
+    update_candidate_resume_metadata(candidate_id, parsed_skills, source)
+
+    candidate = get_candidate_by_id(candidate_id)
+    if candidate:
+        candidate["resume_url"] = (
+            file_service.get_resume_url(candidate["resume_path"]) if candidate.get("resume_path") else None
+        )
+        candidate["skills"] = parsed_skills
+        candidate["source"] = source
+    return candidate or {"id": candidate_id}
+
 
 @app.post("/candidates")
 def post_candidate(

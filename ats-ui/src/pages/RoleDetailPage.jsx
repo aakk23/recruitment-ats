@@ -223,6 +223,7 @@ export default function RoleDetailPage({ role: roleProp, onBack }) {
 
       {/* ── Side panels ─────────────────────────────────────────────────────── */}
       <CandidatePanel
+        key={selectedApp?.application_id ?? "none"}
         application={selectedApp}
         roleId={role.id}
         onClose={() => setSelectedApp(null)}
