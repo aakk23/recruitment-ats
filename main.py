@@ -3,13 +3,13 @@ import os
 from typing import Optional, List
 
 
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Depends, Query, Body
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Depends, Query, Body, Response
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
 
 from config import settings
-from auth import verify_password, create_access_token, get_current_user
+from auth import verify_password, create_access_token, get_current_user, set_auth_cookie
 from services.file_service import get_file_service
 
 from repositories.candidate_repository import (
@@ -261,14 +261,39 @@ class AddCommentRequest(BaseModel):
 
 
 
+# @app.post("/auth/login")
+# def login(form_data: OAuth2PasswordRequestForm = Depends()):
+#     # This function requires find_recruiter_by_email to be imported
+#     user = find_recruiter_by_email(form_data.username)
+#     if not user or not verify_password(form_data.password, user["password_hash"]):
+#         raise HTTPException(status_code=401, detail="Invalid credentials")
+#     token = create_access_token(data={"sub": str(user["id"])})
+#     return {"access_token": token, "token_type": "bearer"}
+
+# /auth/login — set cookie, return only public user info
 @app.post("/auth/login")
-def login(form_data: OAuth2PasswordRequestForm = Depends()):
-    # This function requires find_recruiter_by_email to be imported
+def login(response: Response, form_data: OAuth2PasswordRequestForm = Depends()):
     user = find_recruiter_by_email(form_data.username)
     if not user or not verify_password(form_data.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     token = create_access_token(data={"sub": str(user["id"])})
-    return {"access_token": token, "token_type": "bearer"}
+    set_auth_cookie(response, token)
+    return {"ok": True}   # ← no token in body
+
+# /auth/refresh — rotate the cookie
+@app.post("/auth/refresh")
+def refresh(response: Response, user_id: int = Depends(get_current_user)):
+    new_token = create_access_token(data={"sub": str(user_id)})
+    set_auth_cookie(response, new_token)
+    return {"ok": True}
+
+# /auth/logout — clear the cookie
+@app.post("/auth/logout")
+def logout(response: Response):
+    response.delete_cookie(key="access_token", path="/")
+    return {"ok": True}
+
+
 
 
 @app.get("/auth/me")

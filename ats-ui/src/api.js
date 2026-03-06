@@ -11,24 +11,43 @@ export function resolveFileUrl(url) {
   return `${BASE_URL}${url.startsWith("/") ? "" : "/"}${url}`;
 }
 
-function getAuthHeaders() {
-  const token = localStorage.getItem("token");
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
+// function getAuthHeaders() {
+//   const token = localStorage.getItem("token");
+//   return token ? { Authorization: `Bearer ${token}` } : {};
+// }
 
-function handleAuthError(res) {
-  if (res.status === 401) {
-    localStorage.removeItem("token");
-    window.location.reload();
-  }
-}
+// function handleAuthError(res) {
+//   if (res.status === 401) {
+//     localStorage.removeItem("token");
+//     window.location.reload();
+//   }
+// }
+
+// async function apiFetch(path, options = {}) {
+//   const res = await fetch(`${BASE_URL}${path}`, {
+//     ...options,
+//     headers: { ...getAuthHeaders(), ...(options.headers || {}) },
+//   });
+//   if (res.status === 401) { handleAuthError(res); return null; }
+//   if (!res.ok) {
+//     const err = await res.json().catch(() => ({}));
+//     throw new Error(err.detail || `Request failed: ${path}`);
+//   }
+//   if (res.status === 204) return null;
+//   return res.json();
+// }
 
 async function apiFetch(path, options = {}) {
   const res = await fetch(`${BASE_URL}${path}`, {
     ...options,
-    headers: { ...getAuthHeaders(), ...(options.headers || {}) },
+    credentials: "include",          // ← sends the httpOnly cookie automatically
+    headers: { ...(options.headers || {}) },
   });
-  if (res.status === 401) { handleAuthError(res); return null; }
+  if (res.status === 401) {
+    window.dispatchEvent(new CustomEvent("auth:expired"));
+    return null;
+      // cookie expired/missing → back to login
+  }
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.detail || `Request failed: ${path}`);
@@ -36,6 +55,10 @@ async function apiFetch(path, options = {}) {
   if (res.status === 204) return null;
   return res.json();
 }
+
+
+
+
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 
@@ -45,6 +68,7 @@ export async function login(email, password) {
   form.append("password", password);
   const res = await fetch(`${BASE_URL}/auth/login`, {
     method: "POST",
+    credentials: "include",          // ← cookie set on this response
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: form,
   });
@@ -52,6 +76,8 @@ export async function login(email, password) {
   return res.json();
 }
 
+export const logout  = () => apiFetch("/auth/logout",  { method: "POST" });
+export const refresh = () => apiFetch("/auth/refresh", { method: "POST" });
 export const fetchMe = () => apiFetch("/auth/me");
 
 // ── Lookup data ───────────────────────────────────────────────────────────────

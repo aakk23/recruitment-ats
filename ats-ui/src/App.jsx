@@ -10,7 +10,7 @@ import ToastContainer     from "./toast/ToastContainer";
 import { fetchRole, fetchMe } from "./api";
 
 export default function App() {
-  const [authenticated, setAuthenticated] = useState(!!localStorage.getItem("token"));
+  const [authenticated, setAuthenticated] =useState(null);;
   const [user,          setUser]          = useState(null);
   const [selectedRole,  setSelectedRole]  = useState(null);
   const [page,          setPage]          = useState("roles"); // "roles" | "settings"
@@ -18,17 +18,33 @@ export default function App() {
   // Fetch the logged-in user once after authentication so every page
   // (Navbar, SettingsPage) shares the same object without extra round-trips.
   useEffect(() => {
-    if (!authenticated) { setUser(null); return; }
-    fetchMe().then(me => { if (me) setUser(me); }).catch(() => {});
-  }, [authenticated]);
+    // if (!authenticated) { setUser(null); return; }
+    fetchMe()
+      .then(me => { 
+        if (me) {setUser(me); setAuthenticated(true); }
+        else setAuthenticated(false);
+      })
+      .catch(() => setAuthenticated(false));
+  }, []);
 
-  const handleLogout = () => {
-    localStorage.removeItem("token");
+ // Listen for 401s from any apiFetch call
+  useEffect(() => {
+    const handler = () => {
+      setUser(null);
+      setAuthenticated(false);
+    };
+    window.addEventListener("auth:expired", handler);
+    return () => window.removeEventListener("auth:expired", handler);
+  }, []);
+
+  const handleLogout = async () => {
+    await logout();            // clears the cookie server-side
     setUser(null);
     setSelectedRole(null);
     setPage("roles");
     setAuthenticated(false);
   };
+  if (authenticated === null) return null; 
 
   // Show board immediately with list projection, then upgrade to full detail silently
   const handleRoleSelect = (role) => {

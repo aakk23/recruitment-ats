@@ -13,10 +13,7 @@ function LoginPage({ onLogin }) {
     setLoading(true);
     setError(null);
     login(email, password)
-      .then((res) => {
-        localStorage.setItem("token", res.access_token);
-        onLogin();
-      })
+      .then(() => onLogin())   // ← cookie is already set; nothing to store
       .catch(() => setError("Invalid email or password"))
       .finally(() => setLoading(false));
   };
