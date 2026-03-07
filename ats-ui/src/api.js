@@ -398,6 +398,18 @@ export async function fetchCandidate(candidateId) {
   } catch { return null; }
 }
 
+export async function fetchCandidateApplications(candidateId, { limit = 100, cursor = null } = {}) {
+  if (!candidateId) return { items: [], next_cursor: null };
+  const params = new URLSearchParams();
+  params.set("limit", String(limit));
+  if (cursor) params.set("cursor", String(cursor));
+  try {
+    return await apiFetch(`/candidates/${candidateId}/applications?${params}`);
+  } catch {
+    return { items: [], next_cursor: null };
+  }
+}
+
 // ── Applications ──────────────────────────────────────────────────────────────
 
 export function fetchApplications(roleId, { stage, search, limit = 50, cursor } = {}) {

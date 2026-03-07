@@ -15,7 +15,7 @@ import OverviewTab  from "./candidate/OverviewTab";
 import TimelineTab  from "./candidate/TimelineTab";
 import CommentsTab  from "./candidate/CommentsTab";
 
-export default function CandidatePanel({ application, roleId, onClose, onStageChange, isAdmin }) {
+export default function CandidatePanel({ application, roleId, onClose, onStageChange, onOpenCandidateProfile, isAdmin }) {
 
   // ── Remote data ─────────────────────────────────────────────────────────────
   const [events,     setEvents]     = useState([]);
@@ -265,6 +265,10 @@ export default function CandidatePanel({ application, roleId, onClose, onStageCh
           onToggleResume={() => setShowResume(s => !s)}
           onClose={onClose}
           onTabChange={setTab}
+          onOpenCandidateProfile={() => {
+            if (!application?.candidate_id) return;
+            onOpenCandidateProfile?.(application.candidate_id);
+          }}
         />
 
         {/* Loading / error */}

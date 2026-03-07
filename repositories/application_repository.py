@@ -218,6 +218,88 @@ def list_applications_for_role(
             cur.close()
 
 
+def list_applications_for_candidate(
+    candidate_id: int,
+    limit: int = 100,
+    cursor: Optional[int] = None,
+) -> dict:
+    """Paginated application history for one candidate across all roles."""
+    with get_db_conn() as conn:
+        cur = conn.cursor()
+        try:
+            params = [candidate_id]
+            cursor_clause = ""
+            if cursor:
+                cur.execute(
+                    "SELECT created_at, id FROM applications WHERE id = %s AND candidate_id = %s",
+                    (cursor, candidate_id),
+                )
+                row = cur.fetchone()
+                if row:
+                    cursor_clause = "AND (a.created_at, a.id) < (%s, %s)"
+                    params += [row[0], row[1]]
+
+            params.append(limit + 1)
+
+            cur.execute(
+                f"""
+                SELECT
+                    a.id,
+                    a.role_id,
+                    r.title          AS role_title,
+                    c.name           AS client_name,
+                    r.visibility     AS role_visibility,
+                    a.stage,
+                    a.substage_id,
+                    ss.name          AS substage_name,
+                    rec.name         AS recruiter,
+                    owner.name       AS candidate_owner,
+                    assigned.name    AS assigned_recruiter,
+                    a.created_at,
+                    a.updated_at
+                FROM applications a
+                JOIN roles r                ON a.role_id = r.id
+                JOIN clients c              ON r.client_id = c.id
+                JOIN recruiters rec         ON a.recruiter_id = rec.id
+                LEFT JOIN workflow_substages ss ON a.substage_id = ss.id
+                LEFT JOIN recruiters owner      ON a.candidate_owner_id = owner.id
+                LEFT JOIN recruiters assigned   ON a.assigned_recruiter_id = assigned.id
+                WHERE a.candidate_id = %s
+                {cursor_clause}
+                ORDER BY a.created_at DESC, a.id DESC
+                LIMIT %s
+                """,
+                tuple(params),
+            )
+            rows = cur.fetchall()
+            has_more = len(rows) > limit
+            page = rows[:limit]
+
+            return {
+                "items": [
+                    {
+                        "application_id": r[0],
+                        "role_id": r[1],
+                        "role_title": r[2],
+                        "client": r[3],
+                        "role_visibility": r[4],
+                        "stage": r[5],
+                        "substage_id": r[6],
+                        "substage_name": r[7],
+                        "recruiter": r[8],
+                        "candidate_owner": r[9],
+                        "assigned_recruiter": r[10],
+                        "created_at": r[11],
+                        "updated_at": r[12],
+                    }
+                    for r in page
+                ],
+                "next_cursor": page[-1][0] if has_more else None,
+            }
+        finally:
+            cur.close()
+
+
 def application_exists(application_id: int) -> bool:
     with get_db_conn() as conn:
         cur = conn.cursor()

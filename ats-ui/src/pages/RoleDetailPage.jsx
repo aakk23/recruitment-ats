@@ -15,7 +15,7 @@ import { css } from "../components/styles";
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export default function RoleDetailPage({ role: roleProp, onBack }) {
+export default function RoleDetailPage({ role: roleProp, onBack, onOpenCandidateProfile }) {
   const user = useAuth();
   const canAddCandidate = hasPermission(user, "candidate:add");
   const canMoveCandidate = hasPermission(user, "candidate:move");
@@ -228,6 +228,7 @@ export default function RoleDetailPage({ role: roleProp, onBack }) {
         roleId={role.id}
         onClose={() => setSelectedApp(null)}
         onStageChange={handleStageChange}
+        onOpenCandidateProfile={onOpenCandidateProfile}
       />
       {showAddCandidate && (
         <AddCandidatePanel

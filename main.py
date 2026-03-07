@@ -28,6 +28,7 @@ from repositories.application_repository import (
     update_stage,
     update_ownership,
     list_applications_for_role,
+    list_applications_for_candidate,
     delete_application,
     application_exists,
     add_comment,
@@ -1044,6 +1045,19 @@ def get_candidate(candidate_id: int, user_id: int = Depends(get_current_user)):
     else:
         candidate["resume_url"] = None
     return candidate
+
+
+@app.get("/candidates/{candidate_id}/applications")
+def get_applications_for_candidate(
+    candidate_id: int,
+    limit: int = Query(default=100, ge=1, le=200),
+    cursor: Optional[int] = Query(default=None),
+    user_id: int = Depends(get_current_user),
+):
+    require_admin_or_permission(user_id, "candidate:view")
+    if not get_candidate_by_id(candidate_id):
+        raise HTTPException(status_code=404, detail="Candidate not found")
+    return list_applications_for_candidate(candidate_id=candidate_id, limit=limit, cursor=cursor)
 
 
 # ── Applications ──────────────────────────────────────────────────────────────

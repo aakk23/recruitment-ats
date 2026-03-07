@@ -26,6 +26,7 @@ export default function PanelHeader({
   onToggleResume,
   onClose,
   onTabChange,
+  onOpenCandidateProfile,
 }) {
   const tabs = TABS(events, comments);
 
@@ -67,6 +68,22 @@ export default function PanelHeader({
 
         {/* Action buttons */}
         <div style={{ display: "flex", gap: "6px", alignItems: "flex-start", flexShrink: 0, marginLeft: "10px" }}>
+          {onOpenCandidateProfile && (
+            <button
+              onClick={onOpenCandidateProfile}
+              title="Open full candidate profile"
+              style={{
+                padding: "5px 10px", fontSize: "11px", fontWeight: 600,
+                background: "var(--bg-raised)", color: "var(--text-secondary)",
+                border: "1px solid var(--border-default)",
+                borderRadius: "var(--radius-sm)", transition: "all 0.15s",
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--accent)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--border-default)"; }}
+            >
+              Full Profile
+            </button>
+          )}
           {candidate?.resume_url && (
             <button
               onClick={onToggleResume}

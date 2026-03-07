@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import RolesPage      from "./pages/RolesPage";
 import RoleDetailPage from "./pages/RoleDetailPage";
 import SettingsPage   from "./pages/SettingsPage";
+import CandidateProfilePage from "./pages/CandidateProfilePage";
 import LoginPage      from "./pages/LoginPage";
 import Navbar         from "./components/Navbar";
 import ChangePasswordPanel from "./components/ChangePasswordPanel";
@@ -17,7 +18,8 @@ export default function App() {
   const [authenticated, setAuthenticated] =useState(null);;
   const [user,          setUser]          = useState(null);
   const [selectedRole,  setSelectedRole]  = useState(null);
-  const [page,          setPage]          = useState("roles"); // "roles" | "settings"
+  const [selectedCandidateId, setSelectedCandidateId] = useState(null);
+  const [page,          setPage]          = useState("roles"); // "roles" | "settings" | "candidateProfile"
   const [showPasswordPanel, setShowPasswordPanel] = useState(false);
 
   // Fetch the logged-in user once after authentication so every page
@@ -51,6 +53,7 @@ export default function App() {
     await logout();            // clears the cookie server-side
     setUser(null);
     setSelectedRole(null);
+    setSelectedCandidateId(null);
     setPage("roles");
     setAuthenticated(false);
   };
@@ -59,10 +62,17 @@ export default function App() {
   // Show board immediately with list projection, then upgrade to full detail silently
   const handleRoleSelect = (role) => {
     setPage("roles");
+    setSelectedCandidateId(null);
     setSelectedRole(role);
     fetchRole(role.id)
       .then(full => { if (full) setSelectedRole(full); })
       .catch(() => {});
+  };
+
+  const openCandidateProfile = (candidateId) => {
+    if (!candidateId) return;
+    setSelectedCandidateId(candidateId);
+    setPage("candidateProfile");
   };
 
   if (!authenticated) {
@@ -93,7 +103,7 @@ export default function App() {
           <Navbar
             user={user}
             onLogout={handleLogout}
-            onSettings={() => { setSelectedRole(null); setPage("settings"); }}
+            onSettings={() => { setSelectedRole(null); setSelectedCandidateId(null); setPage("settings"); }}
             onChangePassword={() => setShowPasswordPanel(true)}
           />
   
@@ -102,11 +112,22 @@ export default function App() {
           )}
   
           {page === "roles" && selectedRole && (
-            <RoleDetailPage role={selectedRole} onBack={() => setSelectedRole(null)} />
+            <RoleDetailPage
+              role={selectedRole}
+              onBack={() => setSelectedRole(null)}
+              onOpenCandidateProfile={openCandidateProfile}
+            />
           )}
   
           {page === "roles" && !selectedRole && (
             <RolesPage onRoleSelect={handleRoleSelect} />
+          )}
+
+          {page === "candidateProfile" && selectedCandidateId && (
+            <CandidateProfilePage
+              candidateId={selectedCandidateId}
+              onBack={() => { setSelectedCandidateId(null); setPage("roles"); }}
+            />
           )}
           <ChangePasswordPanel
             open={showPasswordPanel}
