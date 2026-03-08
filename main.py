@@ -20,6 +20,7 @@ from repositories.candidate_repository import (
     create_candidate,
     update_resume_path,
     get_candidate_by_id,
+    list_candidates,
     update_candidate_resume_metadata,
 )
 from repositories.application_repository import (
@@ -1032,6 +1033,17 @@ def post_candidate(
         "email":           email,
         "resume_filename": resume.filename or "resume.pdf",
     }
+
+
+@app.get("/candidates")
+def get_candidates(
+    search: Optional[str] = Query(default=None, max_length=200),
+    limit: int = Query(default=50, ge=1, le=200),
+    cursor: Optional[int] = Query(default=None),
+    user_id: int = Depends(get_current_user),
+):
+    require_admin_or_permission(user_id, "candidate:view")
+    return list_candidates(search=search, limit=limit, cursor=cursor)
 
 
 @app.get("/candidates/{candidate_id}")

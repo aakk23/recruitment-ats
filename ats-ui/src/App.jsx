@@ -4,6 +4,7 @@ import RolesPage      from "./pages/RolesPage";
 import RoleDetailPage from "./pages/RoleDetailPage";
 import SettingsPage   from "./pages/SettingsPage";
 import CandidateProfilePage from "./pages/CandidateProfilePage";
+import CandidatesPage from "./pages/CandidatesPage";
 import LoginPage      from "./pages/LoginPage";
 import Navbar         from "./components/Navbar";
 import ChangePasswordPanel from "./components/ChangePasswordPanel";
@@ -11,6 +12,7 @@ import { ToastProvider }  from "./toast/ToastContext";
 import ToastContainer     from "./toast/ToastContainer";
 import { fetchRole, fetchMe, logout, scheduleRefresh, cancelRefresh } from "./api";
 import { AuthContext } from "./useAuth";
+import { hasPermission } from "./permissions";
 
 
 
@@ -19,6 +21,7 @@ export default function App() {
   const [user,          setUser]          = useState(null);
   const [selectedRole,  setSelectedRole]  = useState(null);
   const [selectedCandidateId, setSelectedCandidateId] = useState(null);
+  const [candidateProfileBackPage, setCandidateProfileBackPage] = useState("roles");
   const [page,          setPage]          = useState("roles"); // "roles" | "settings" | "candidateProfile"
   const [showPasswordPanel, setShowPasswordPanel] = useState(false);
 
@@ -54,6 +57,7 @@ export default function App() {
     setUser(null);
     setSelectedRole(null);
     setSelectedCandidateId(null);
+    setCandidateProfileBackPage("roles");
     setPage("roles");
     setAuthenticated(false);
   };
@@ -69,11 +73,15 @@ export default function App() {
       .catch(() => {});
   };
 
-  const openCandidateProfile = (candidateId) => {
+  const openCandidateProfile = (candidateId, backPage = "roles") => {
     if (!candidateId) return;
     setSelectedCandidateId(candidateId);
+    setCandidateProfileBackPage(backPage);
     setPage("candidateProfile");
   };
+
+  const canViewCandidates = hasPermission(user, "candidate:view");
+  const navPage = page === "candidateProfile" ? candidateProfileBackPage : page;
 
   if (!authenticated) {
     return (
@@ -105,6 +113,10 @@ export default function App() {
             onLogout={handleLogout}
             onSettings={() => { setSelectedRole(null); setSelectedCandidateId(null); setPage("settings"); }}
             onChangePassword={() => setShowPasswordPanel(true)}
+            onJobs={() => { setSelectedRole(null); setSelectedCandidateId(null); setPage("roles"); }}
+            onCandidates={() => { setSelectedRole(null); setSelectedCandidateId(null); setPage("candidates"); }}
+            activePage={navPage}
+            showCandidates={canViewCandidates}
           />
   
           {page === "settings" && (
@@ -123,10 +135,14 @@ export default function App() {
             <RolesPage onRoleSelect={handleRoleSelect} />
           )}
 
+          {page === "candidates" && canViewCandidates && (
+            <CandidatesPage onCandidateSelect={(candidateId) => openCandidateProfile(candidateId, "candidates")} />
+          )}
+
           {page === "candidateProfile" && selectedCandidateId && (
             <CandidateProfilePage
               candidateId={selectedCandidateId}
-              onBack={() => { setSelectedCandidateId(null); setPage("roles"); }}
+              onBack={() => { setSelectedCandidateId(null); setPage(candidateProfileBackPage); }}
             />
           )}
           <ChangePasswordPanel

@@ -398,6 +398,14 @@ export async function fetchCandidate(candidateId) {
   } catch { return null; }
 }
 
+export function fetchCandidates({ search, limit = 50, cursor = null } = {}) {
+  const params = new URLSearchParams();
+  if (search) params.set("search", search);
+  params.set("limit", String(limit));
+  if (cursor) params.set("cursor", String(cursor));
+  return apiFetch(`/candidates?${params}`);
+}
+
 export async function fetchCandidateApplications(candidateId, { limit = 100, cursor = null } = {}) {
   if (!candidateId) return { items: [], next_cursor: null };
   const params = new URLSearchParams();

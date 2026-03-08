@@ -2,7 +2,16 @@
 // user is fetched once in App.jsx and passed down — avoids a duplicate /auth/me call.
 import { useState, useEffect, useRef } from "react";
 
-export default function Navbar({ user, onLogout, onSettings, onChangePassword }) {
+export default function Navbar({
+  user,
+  onLogout,
+  onSettings,
+  onChangePassword,
+  onJobs,
+  onCandidates,
+  activePage = "jobs",
+  showCandidates = true,
+}) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
@@ -25,7 +34,11 @@ export default function Navbar({ user, onLogout, onSettings, onChangePassword })
       padding: "0 24px", flexShrink: 0,
     }}>
       {/* Brand */}
-      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+        <button
+          onClick={() => onJobs?.()}
+          style={{ display: "flex", alignItems: "center", gap: "10px", background: "transparent", border: "none", padding: 0 }}
+        >
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
           <rect width="24" height="24" rx="6" fill="var(--accent)" />
           <path d="M5 17V7l7 5 7-5v10" stroke="#fff" strokeWidth="2"
@@ -34,6 +47,12 @@ export default function Navbar({ user, onLogout, onSettings, onChangePassword })
         <span style={{ fontWeight: 700, fontSize: "15px", letterSpacing: "-0.02em" }}>
           Maverick<span style={{ color: "var(--accent)", marginLeft: "2px" }}>ATS</span>
         </span>
+        </button>
+
+        <div style={{ display: "flex", gap: "6px" }}>
+          <TopNavBtn label="Jobs" active={activePage === "jobs"} onClick={onJobs} />
+          {showCandidates && <TopNavBtn label="Candidates" active={activePage === "candidates"} onClick={onCandidates} />}
+        </div>
       </div>
 
       {/* User avatar + dropdown */}
@@ -117,6 +136,25 @@ export default function Navbar({ user, onLogout, onSettings, onChangePassword })
         )}
       </div>
     </header>
+  );
+}
+
+function TopNavBtn({ label, active, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        border: "none",
+        background: active ? "var(--accent-muted)" : "transparent",
+        color: active ? "var(--accent)" : "var(--text-muted)",
+        borderRadius: "var(--radius-md)",
+        padding: "6px 10px",
+        fontSize: "13px",
+        fontWeight: active ? 600 : 500,
+      }}
+    >
+      {label}
+    </button>
   );
 }
 

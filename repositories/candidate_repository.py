@@ -86,6 +86,76 @@ def get_candidate_by_id(candidate_id: int) -> Optional[dict]:
             cur.close()
 
 
+def list_candidates(
+    search: Optional[str] = None,
+    limit: int = 50,
+    cursor: Optional[int] = None,
+) -> dict:
+    """Paginated candidates list with basic application aggregates."""
+    with get_db_conn() as conn:
+        cur = conn.cursor()
+        try:
+            params = []
+            cursor_clause = ""
+            if cursor:
+                cur.execute("SELECT created_at, id FROM candidates WHERE id = %s", (cursor,))
+                row = cur.fetchone()
+                if row:
+                    cursor_clause = "AND (cand.created_at, cand.id) < (%s, %s)"
+                    params += [row[0], row[1]]
+
+            search_clause = ""
+            if search:
+                search_clause = "AND (cand.full_name ILIKE %s OR cand.email ILIKE %s)"
+                params += [f"%{search}%", f"%{search}%"]
+
+            params.append(limit + 1)
+
+            cur.execute(
+                f"""
+                SELECT
+                    cand.id,
+                    cand.full_name,
+                    cand.email,
+                    cand.phone,
+                    cand.linkedin_url,
+                    cand.created_at,
+                    COUNT(a.id) AS applications_count,
+                    MAX(a.created_at) AS last_applied_at
+                FROM candidates cand
+                LEFT JOIN applications a ON a.candidate_id = cand.id
+                WHERE 1=1
+                {cursor_clause}
+                {search_clause}
+                GROUP BY cand.id
+                ORDER BY cand.created_at DESC, cand.id DESC
+                LIMIT %s
+                """,
+                tuple(params),
+            )
+            rows = cur.fetchall()
+            has_more = len(rows) > limit
+            page = rows[:limit]
+            return {
+                "items": [
+                    {
+                        "id": r[0],
+                        "full_name": r[1],
+                        "email": r[2],
+                        "phone": r[3],
+                        "linkedin_url": r[4],
+                        "created_at": r[5],
+                        "applications_count": r[6] or 0,
+                        "last_applied_at": r[7],
+                    }
+                    for r in page
+                ],
+                "next_cursor": page[-1][0] if has_more else None,
+            }
+        finally:
+            cur.close()
+
+
 def _get_column_type(cur, table_name: str, column_name: str) -> Optional[str]:
     cur.execute(
         """
